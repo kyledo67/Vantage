@@ -14,6 +14,7 @@ import AboutMethodologyPage from './pages/AboutMethodologyPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import RequireAuth from './components/auth/RequireAuth.jsx'
+import { ParlayProvider } from './context/ParlayContext.jsx'
 
 export default function App() {
   return (
@@ -34,7 +35,9 @@ export default function App() {
       <Route
         element={
           <RequireAuth>
-            <DashboardLayout />
+            <ParlayProvider>
+              <DashboardLayout />
+            </ParlayProvider>
           </RequireAuth>
         }
       >

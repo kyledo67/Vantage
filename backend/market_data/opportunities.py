@@ -565,11 +565,17 @@ def _find_game_reference(target_market, target_outcome, source, book):
         total = sum(probabilities)
         if total <= 0:
             continue
+        other_index = next(
+            (index for index in range(len(outcomes)) if index != match_index), None
+        )
+        other_outcome = outcomes[other_index] if other_index is not None else None
         return {
             "book_key": source,
             "book_title": book.get("title") or source.title(),
             "fair_probability": probabilities[match_index] / total,
             "price": outcomes[match_index].get("price"),
+            "other_name": other_outcome.get("name") if other_outcome else None,
+            "other_price": other_outcome.get("price") if other_outcome else None,
             "last_update": market.get("last_update") or book.get("last_update"),
             "weight": REFERENCE_WEIGHTS[source],
         }
@@ -647,6 +653,14 @@ def build_game_opportunities(events):
                     target_price = outcome.get("price")
                     target_probability = american_implied_probability(target_price)
                     decimal_odds = american_decimal_odds(target_price)
+                    other_outcome = next(
+                        (
+                            candidate
+                            for candidate in target_outcomes
+                            if candidate is not outcome
+                        ),
+                        None,
+                    )
                     references = _collect_game_references(
                         market, outcome, books, platform
                     )
@@ -702,6 +716,10 @@ def build_game_opportunities(events):
                                 "odds": target_price,
                                 "oddsLabel": target_odds,
                                 "source": platform_title,
+                                "otherName": other_outcome.get("name") if other_outcome else None,
+                                "otherLabel": _format_american(other_outcome.get("price"))
+                                if other_outcome
+                                else None,
                             },
                             "consensus": {
                                 "label": f"{fair_probability * 100:.1f}%",
@@ -712,6 +730,7 @@ def build_game_opportunities(events):
                                 "label": f"+{net_ev_percent:.1f}%",
                                 "value": round(net_ev_percent, 2),
                                 "isPositive": True,
+                                "probabilityLabel": f"{fair_probability * 100:.1f}% to hit",
                             },
                             "hasDetail": True,
                             "_meta": {
@@ -735,6 +754,10 @@ def build_game_opportunities(events):
                                         "name": reference["book_title"],
                                         "priceLabel": _format_american(reference["price"]),
                                         "odds": reference["price"],
+                                        "otherName": reference.get("other_name"),
+                                        "otherPriceLabel": _format_american(reference.get("other_price"))
+                                        if reference.get("other_price") is not None
+                                        else None,
                                         "fairProbability": round(reference["fair_probability"], 4),
                                         "weight": reference["weight"],
                                         "subLabel": (

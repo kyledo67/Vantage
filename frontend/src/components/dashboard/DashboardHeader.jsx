@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext.jsx'
 // Only destinations that exist are linked; the rest render disabled.
 const primaryNav = [
   { label: 'Discover', to: '/ev-finder' },
-  { label: 'My Picks', to: '/watchlist' },
+  { label: 'My Picks', to: '/parlay' },
   { label: 'Markets', to: '/markets' },
   { label: 'How It Works', to: '/about' },
 ]
