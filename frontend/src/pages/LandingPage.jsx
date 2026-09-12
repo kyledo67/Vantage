@@ -83,7 +83,7 @@ export default function LandingPage() {
 
             <motion.div {...rise(0.24)} className="mt-5">
               <Link
-                to="/about"
+                to="/methodology"
                 className="text-sm font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
               >
                 How it works →

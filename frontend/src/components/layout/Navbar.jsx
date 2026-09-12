@@ -119,8 +119,11 @@ export default function Navbar() {
 
         <nav className="hidden items-center gap-8 md:flex" aria-label="Main">
           <ProductMenu />
-          <NavLink to="/about" className={centerLinkClass}>
-            Methodology
+          <NavLink to="/methodology" className={centerLinkClass}>
+            <span className="flex items-center gap-1.5">
+              Methodology
+              {!isAuthenticated && <LockIcon />}
+            </span>
           </NavLink>
           <NavLink to="/ev-finder" className={centerLinkClass}>
             <span className="flex items-center gap-1.5">

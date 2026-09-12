@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
 import DashboardSidebar from '../components/dashboard/DashboardSidebar.jsx'
@@ -16,6 +16,7 @@ import { DURATION, EASE } from '../motion/tokens.js'
 export default function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const location = useLocation()
 
   // Stops shimmer/live-dot loops while the tab is backgrounded.
   usePageVisiblePause()
@@ -65,7 +66,21 @@ export default function DashboardLayout() {
 
       <main className="pt-[72px] lg:pl-[220px]">
         <div className="p-4 sm:p-6">
-          <Outlet context={{ search }} />
+          {/* Nav and background stay mounted outside this — only the page
+              content itself fades, so navigating never reads as leaving
+              Vantage. Reduced-motion users get opacity only (or none), via
+              the root MotionConfig. */}
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: DURATION.expand, ease: EASE.out }}
+            >
+              <Outlet context={{ search }} />
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

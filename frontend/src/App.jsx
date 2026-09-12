@@ -10,7 +10,7 @@ import MarketsPage from './pages/MarketsPage.jsx'
 import MarketDetailPage from './pages/MarketDetailPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
-import AboutMethodologyPage from './pages/AboutMethodologyPage.jsx'
+import MethodologyPage from './pages/MethodologyPage.jsx'
 import LoginPage from './pages/LoginPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 import RequireAuth from './components/auth/RequireAuth.jsx'
@@ -24,7 +24,9 @@ export default function App() {
       {/* Marketing site */}
       <Route element={<SiteLayout />}>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/about" element={<AboutMethodologyPage />} />
+        {/* Old plain-text methodology page is gone — the Learning Center now
+            lives in the dashboard shell. */}
+        <Route path="/about" element={<Navigate to="/methodology" replace />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
@@ -46,6 +48,7 @@ export default function App() {
         <Route path="/markets/:id" element={<MarketDetailPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/methodology" element={<MethodologyPage />} />
         {/* Old route kept working for anyone holding the link. */}
         <Route path="/portfolio" element={<Navigate to="/parlay" replace />} />
       </Route>

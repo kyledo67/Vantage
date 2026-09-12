@@ -1,4 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { Chevron, PlatformBadge, PositiveValue, Skeleton } from './atoms.jsx'
 import ValueFlash from '../../motion/ValueFlash.jsx'
 import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
@@ -8,7 +9,7 @@ export const COLUMNS =
   'grid grid-cols-[1.9fr_1.1fr_0.85fr_0.7fr_0.8fr_0.7fr_28px] items-center gap-3'
 
 /** Detail panel — each block is skipped entirely when its data is absent. */
-function ExpandedPanel({ detail, status }) {
+function ExpandedPanel({ detail, status, onMethodology }) {
   if (status === 'loading' || status === 'idle') {
     return (
       <div className="flex flex-col gap-3 px-4 pb-4" aria-busy="true">
@@ -111,6 +112,16 @@ function ExpandedPanel({ detail, status }) {
           ))}
         </div>
       )}
+
+      {onMethodology && (
+        <button
+          type="button"
+          onClick={onMethodology}
+          className="self-start text-[11px] font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+        >
+          How this is calculated →
+        </button>
+      )}
     </div>
   )
 }
@@ -124,7 +135,24 @@ export default function OpportunityRow({
   selected,
   onSelect,
 }) {
+  const navigate = useNavigate()
   const { selection, market, platform, price, consensus, ev } = opportunity
+
+  const handleMethodology = () => {
+    navigate('/methodology', {
+      state: {
+        opportunity: {
+          title: selection?.title,
+          subtitle: selection?.subtitle,
+          platform: platform?.name,
+          price: price?.label,
+          ev: ev?.label,
+        },
+        backTo: '/ev-finder',
+        backLabel: 'Back to opportunity',
+      },
+    })
+  }
 
   return (
     <motion.div
@@ -273,7 +301,7 @@ export default function OpportunityRow({
             {/* Content fade uses a CSS keyframe whose resting state is visible,
                 so a skipped animation can never leave the panel blank. */}
             <div className="animate-detail-in">
-              <ExpandedPanel detail={detail} status={detailStatus} />
+              <ExpandedPanel detail={detail} status={detailStatus} onMethodology={handleMethodology} />
             </div>
           </motion.div>
         )}

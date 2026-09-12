@@ -1,22 +1,66 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { Skeleton } from './atoms.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
+import { DURATION, EASE } from '../../motion/tokens.js'
+
+function BookIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M2 3.5c1.8-.8 3.6-.8 5.5 0v9c-1.9-.8-3.7-.8-5.5 0v-9z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M14 3.5c-1.8-.8-3.6-.8-5.5 0v9c1.9-.8 3.7-.8 5.5 0v-9z"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
 
 // Only destinations that exist are linked; the rest render disabled.
 const primaryNav = [
   { label: 'Discover', to: '/ev-finder' },
   { label: 'My Picks', to: '/watchlist' },
   { label: 'Markets', to: '/markets' },
-  { label: 'How It Works', to: '/about' },
+  { label: 'Methodology', to: '/methodology', Icon: BookIcon },
 ]
 
-function navClass({ isActive }) {
-  return `border-b-[3px] pb-1 text-sm transition-colors ${
-    isActive
-      ? 'border-vantage-accent text-vantage-text'
-      : 'border-transparent text-vantage-textDim hover:text-vantage-text'
-  }`
+/**
+ * The active underline is a single shared element (layoutId) that slides
+ * between tabs on navigation, rather than one underline fading out while
+ * another fades in — matches the sidebar's active-pill treatment.
+ */
+function NavItem({ label, to, Icon }) {
+  return (
+    <NavLink to={to} end className="relative pb-1 text-sm">
+      {({ isActive }) => (
+        <>
+          <span
+            className={`flex items-center gap-1.5 transition-colors duration-200 ${
+              isActive ? 'text-vantage-text' : 'text-vantage-textDim hover:text-vantage-text'
+            }`}
+          >
+            {Icon && <Icon />}
+            {label}
+          </span>
+          {isActive && (
+            <motion.span
+              layoutId="header-active-underline"
+              transition={{ duration: DURATION.nav, ease: EASE.out }}
+              className="absolute inset-x-0 -bottom-[1px] h-[3px] rounded-full bg-vantage-accent"
+            />
+          )}
+        </>
+      )}
+    </NavLink>
+  )
 }
 
 /**
@@ -109,19 +153,17 @@ export default function DashboardHeader({
         </Link>
 
         <nav className="hidden items-center gap-7 md:flex" aria-label="Primary">
-          {primaryNav.map(({ label, to }) =>
-            to ? (
-              <NavLink key={label} to={to} end className={navClass}>
-                {label}
-              </NavLink>
+          {primaryNav.map((item) =>
+            item.to ? (
+              <NavItem key={item.label} {...item} />
             ) : (
               <span
-                key={label}
+                key={item.label}
                 aria-disabled="true"
                 title="Not available yet"
-                className="cursor-not-allowed border-b-[3px] border-transparent pb-1 text-sm text-vantage-textDim/45"
+                className="cursor-not-allowed pb-1 text-sm text-vantage-textDim/45"
               >
-                {label}
+                {item.label}
               </span>
             )
           )}
