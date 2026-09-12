@@ -1,2 +1,2 @@
 # Vantage
-Gives yourself a better vantage point on the market
+Gives users a better vantage point on the market
