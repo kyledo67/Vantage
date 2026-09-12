@@ -1,6 +1,6 @@
 // Thin fetch wrapper around the Django REST API.
 // The frontend only ever talks to our own backend (see /api endpoints below) —
-// never directly to PropLine, Kalshi, Polymarket, or Gemini.
+// never directly to ParlayAPI, Kalshi, Polymarket, or Gemini.
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 

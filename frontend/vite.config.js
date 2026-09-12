@@ -7,7 +7,7 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // Django REST backend. React never calls PropLine/Kalshi/Polymarket/Gemini directly.
+      // Django REST backend. React never calls ParlayAPI/Kalshi/Polymarket/Gemini directly.
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,

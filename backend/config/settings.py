@@ -97,6 +97,70 @@ REST_FRAMEWORK = {
 
 SUPABASE_URL = env("SUPABASE_URL", default="")
 SUPABASE_PUBLISHABLE_KEY = env("SUPABASE_PUBLISHABLE_KEY", default="")
+PARLAY_API_KEY = env("PARLAY_API_KEY", default="")
+PARLAY_API_BASE_URL = env(
+    "PARLAY_API_BASE_URL", default="https://parlay-api.com/v1"
+)
+KALSHI_API_BASE_URL = env(
+    "KALSHI_API_BASE_URL",
+    default="https://api.elections.kalshi.com/trade-api/v2",
+)
+POLYMARKET_GAMMA_API_BASE_URL = env(
+    "POLYMARKET_GAMMA_API_BASE_URL", default="https://gamma-api.polymarket.com"
+)
+POLYMARKET_CLOB_API_BASE_URL = env(
+    "POLYMARKET_CLOB_API_BASE_URL", default="https://clob.polymarket.com"
+)
+MARKET_DATA_SPORTS = env.list(
+    "MARKET_DATA_SPORTS",
+    default=[
+        "baseball_mlb",
+        "americanfootball_nfl",
+        "basketball_nba",
+        "icehockey_nhl",
+        "basketball_wnba",
+        "soccer_epl",
+    ],
+)
+MARKET_DATA_BOOKMAKERS = env.list(
+    "MARKET_DATA_BOOKMAKERS",
+    default=[
+        "kalshi",
+        "polymarket",
+        "pinnacle",
+        "fanduel",
+        "novig",
+        "prophetx",
+        "bovada",
+        "draftkings",
+        "betmgm",
+        "caesars",
+        "betonline",
+        "bet365",
+        "betrivers",
+        "fanatics",
+        "fliff",
+        "hardrock",
+        "parx",
+        "bookmaker_eu",
+        "unibet",
+        "tenbet",
+        "betr",
+        "sleeper",
+        "pick6",
+        "underdog",
+        "prizepicks",
+    ],
+)
+MARKET_DATA_MAX_AGE_SECONDS = env.int("MARKET_DATA_MAX_AGE_SECONDS", default=300)
+MARKET_DATA_PROP_LIMIT = env.int("MARKET_DATA_PROP_LIMIT", default=10000)
+MARKET_DATA_REQUEST_TIMEOUT_SECONDS = env.int(
+    "MARKET_DATA_REQUEST_TIMEOUT_SECONDS", default=15
+)
+MARKET_DATA_MIN_EV_PERCENT = env.float("MARKET_DATA_MIN_EV_PERCENT", default=0.0)
+MARKET_DATA_COST_ALLOWANCE_PERCENT = env.float(
+    "MARKET_DATA_COST_ALLOWANCE_PERCENT", default=1.0
+)
 NESSIE_API_KEY = env("NESSIE_API_KEY", default="")
 NESSIE_API_BASE_URL = env("NESSIE_API_BASE_URL", default="http://api.nessieisreal.com")
 PERSONA_API_KEY = env("PERSONA_API_KEY", default="")
