@@ -183,8 +183,9 @@ each reference source's margin, builds a weighted fair probability, and calculat
 against the target ask. ParlayAPI's `/ev` route uses a single configurable sharp
 anchor, so the finder keeps its broader weighted consensus calculation.
 
-Only opportunities with estimated net EV greater than `0%` are returned. The default
-does not hide opportunities below `+3%`.
+Only opportunities with estimated net EV greater than `0%` and a consensus hit
+probability of at least `30%` are returned. The EV floor remains `0%`, so smaller
+positive edges are still eligible when their hit probability clears the hard floor.
 
 ### `GET /api/opportunities/`
 
@@ -193,7 +194,7 @@ Returns the current ranked opportunity feed.
 #### Query inputs
 
 ```text
-GET /api/opportunities/?category=americanfootball_nfl&platform=kalshi&market_type=player_prop&min_ev=1&search=mahomes&refresh=true
+GET /api/opportunities/?category=americanfootball_nfl&platform=kalshi&market_type=player_prop&min_ev=1&min_probability=30&search=mahomes&refresh=true
 ```
 
 | Parameter | Required | Example | Purpose |
@@ -202,6 +203,7 @@ GET /api/opportunities/?category=americanfootball_nfl&platform=kalshi&market_typ
 | `platform` | No | `kalshi` | `kalshi` or `polymarket`. |
 | `market_type` | No | `player_prop` | `player_prop`, `game_prop`, or `game_market`. |
 | `min_ev` | No | `1` | Minimum net EV percentage. Defaults to `0`. Negative-EV results are never returned. |
+| `min_probability` | No | `30` | Minimum estimated hit probability from `30` through `100`. Values below `30` are raised to the hard `30%` floor. |
 | `search` | No | `mahomes` | Case-insensitive search across event, selection, market, and platform names. |
 | `refresh` | No | `true` | Fetches new ParlayAPI references and direct Kalshi/Polymarket asks. Omit it when changing filters so no credits are spent. |
 
@@ -250,6 +252,7 @@ soccer_epl
       },
       "consensus": {
         "label": "28.8%",
+        "probability": 0.288,
         "sourceCount": 4,
         "sources": ["Pinnacle", "FanDuel", "Novig", "Bovada"]
       },
@@ -257,6 +260,16 @@ soccer_epl
         "label": "+5.5%",
         "value": 5.5,
         "isPositive": true
+      },
+      "evaluation": {
+        "hitProbability": 28.8,
+        "hitProbabilityLabel": "28.8%",
+        "missProbability": 71.2,
+        "tier": "lower",
+        "tierLabel": "Lower hit chance",
+        "kellyPercent": 2.04,
+        "quarterKellyPercent": 0.51,
+        "rankScore": 2.04
       },
       "hasDetail": true
     }
@@ -274,6 +287,10 @@ soccer_epl
 | `consensus.label` | Weighted, no-vig probability across matched reference books. |
 | `consensus.sources` | Names of the books that contributed to this result. |
 | `ev.value` | Estimated net expected return percentage after the configured cost allowance. |
+| `evaluation.hitProbability` | Consensus estimate of how often the selection wins, expressed from `0` through `100`. |
+| `evaluation.tier` | Plain-language hit-chance band: `longshot`, `lower`, `moderate`, or `higher`. |
+| `evaluation.kellyPercent` | Full Kelly fraction expressed as a bankroll percentage and used for default ranking. |
+| `evaluation.quarterKellyPercent` | Conservative quarter-Kelly reference shown in the detail panel. |
 
 #### Errors
 
@@ -300,12 +317,24 @@ Returns the book-by-book evidence behind one opportunity. Use the `id` returned 
 {
   "sources": [
     {
+      "id": "kalshi",
+      "name": "Kalshi",
+      "priceLabel": "+100",
+      "odds": 100,
+      "impliedProbability": 0.5,
+      "isTarget": true,
+      "includedInConsensus": false,
+      "subLabel": "Target · 50.0% implied"
+    },
+    {
       "id": "pinnacle",
       "name": "Pinnacle",
       "priceLabel": "-150",
       "odds": -150,
       "fairProbability": 0.582,
       "weight": 5.0,
+      "isTarget": false,
+      "includedInConsensus": true,
       "subLabel": "58.2% no-vig · 5× weight"
     },
     {
@@ -358,8 +387,12 @@ Returns the book-by-book evidence behind one opportunity. Use the `id` returned 
 }
 ```
 
-Each item in `sources` identifies the sportsbook, its American odds, that book's
-individual no-vig probability, and its consensus weight.
+The target platform is always the first item in `sources`. If the other prediction
+platform has the exact same event, market, side, and line, its price is included too.
+Every other item identifies the sportsbook, its American odds, individual no-vig
+probability, consensus weight, and whether it survived the outlier check. An excluded
+price remains visible for transparency but has `includedInConsensus: false` and zero
+weight.
 
 #### Errors
 
@@ -431,11 +464,30 @@ For every Kalshi or Polymarket outcome, the backend:
 3. Converts each American price into implied probability.
 4. Divides the selected probability by the sum of all probabilities in that book's
    matched market to create a no-vig probability.
-5. Requires at least one sharp anchor and combines all available no-vig probabilities
-   with the weights below.
-6. Calculates gross EV as `fair_probability × target_decimal_odds - 1`.
-7. Subtracts `MARKET_DATA_COST_ALLOWANCE_PERCENT`, currently `1` percentage point.
-8. Returns the opportunity only when the resulting net EV is greater than zero.
+5. Requires at least two usable reference sources, including a sportsbook baseline
+   led by Pinnacle, then FanDuel and the remaining primary sportsbooks. A sole
+   Pinnacle reference is allowed when no second book covers that exact market.
+6. Rejects incomplete or malformed reference markets when the combined implied
+   probability is below `90%` or above `130%`. For example, a two-sided `+400/+400`
+   feed is not treated as a 50/50 market.
+7. Requires the target payout to be better than the median matched sharp-book payout.
+   A Kalshi `+317` target is therefore rejected when its sharp references are around
+   `+400`.
+8. Removes reference outliers that differ from the highest-priority available
+   sportsbook baseline by more than 12 probability points or by more than a 2×
+   probability-odds ratio. Excluded prices remain visible in opportunity details.
+9. Calculates gross EV as `fair_probability × target_decimal_odds - 1`.
+10. Subtracts `MARKET_DATA_COST_ALLOWANCE_PERCENT`, currently `1` percentage point.
+11. Rejects the opportunity when consensus hit probability is below the configured
+    hard floor, currently `30%`.
+12. Returns the opportunity only when the resulting net EV is greater than zero.
+13. Calculates `Kelly % = net edge ÷ (target decimal odds - 1)` for the detail view.
+    Because every eligible result already clears the `30%` hit-probability floor, the
+    feed ranks by net EV first, then hit probability and Kelly score as tie-breakers.
+
+EV already includes win probability, but the product applies a separate minimum
+hit-rate policy. A mathematically positive-EV longshot is omitted whenever its
+consensus probability is below `30%`.
 
 ### Consensus weights
 
@@ -443,8 +495,6 @@ For every Kalshi or Polymarket outcome, the backend:
 | --- | ---: |
 | Pinnacle | 5.0 |
 | FanDuel | 4.0 |
-| Novig | 3.5 |
-| ProphetX | 3.5 |
 | Bookmaker.eu | 3.0 |
 | Bet365 | 2.5 |
 | Bovada | 2.5 |
@@ -453,6 +503,8 @@ For every Kalshi or Polymarket outcome, the backend:
 | BetMGM | 2.0 |
 | Caesars | 2.0 |
 | BetRivers / Fanatics | 2.0 |
+| Novig | 2.0 |
+| ProphetX | 1.5 |
 | Fliff / Hard Rock / Parx / Unibet / 10bet | 1.5 |
 | Underdog | 1.0 |
 | PrizePicks | 1.0 |
@@ -624,6 +676,7 @@ MARKET_DATA_MAX_AGE_SECONDS
 MARKET_DATA_PROP_LIMIT
 MARKET_DATA_REQUEST_TIMEOUT_SECONDS
 MARKET_DATA_MIN_EV_PERCENT
+MARKET_DATA_MIN_HIT_PROBABILITY_PERCENT
 MARKET_DATA_COST_ALLOWANCE_PERCENT
 ```
 

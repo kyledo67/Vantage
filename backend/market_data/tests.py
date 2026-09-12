@@ -126,19 +126,39 @@ class OpportunityCalculationTests(TestCase):
             [
                 self.row("kalshi"),
                 self.row("pinnacle", over_price=-150, under_price=130),
+                self.row("fanduel", over_price=-145, under_price=125),
             ]
         )
 
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["platform"]["name"], "Kalshi")
         self.assertGreater(results[0]["ev"]["value"], 0)
-        self.assertEqual(results[0]["_detail"]["sources"][0]["name"], "Pinnacle")
+        self.assertEqual(results[0]["_detail"]["sources"][0]["name"], "Kalshi")
+        self.assertTrue(results[0]["_detail"]["sources"][0]["isTarget"])
+        self.assertEqual(results[0]["_detail"]["sources"][1]["name"], "Pinnacle")
         self.assertEqual(results[0]["price"]["oddsLabel"], "+120")
 
     def test_does_not_match_different_prop_line(self):
         rows = [
             self.row("kalshi", line=8.5),
             self.row("pinnacle", line=9.5, over_price=-150, under_price=130),
+        ]
+
+        self.assertEqual(build_prop_opportunities(rows), [])
+
+    def test_rejects_worse_target_price_even_if_reference_normalization_is_odd(self):
+        rows = [
+            self.row("kalshi", over_price=317, under_price=-400),
+            self.row("pinnacle", over_price=400, under_price=-500),
+            self.row("fanduel", over_price=400, under_price=-500),
+        ]
+
+        self.assertEqual(build_prop_opportunities(rows), [])
+
+    def test_rejects_malformed_two_sided_reference_underround(self):
+        rows = [
+            self.row("kalshi", over_price=317, under_price=-400),
+            self.row("pinnacle", over_price=400, under_price=400),
         ]
 
         self.assertEqual(build_prop_opportunities(rows), [])
@@ -157,9 +177,125 @@ class OpportunityCalculationTests(TestCase):
         self.assertEqual(result["consensus"]["sourceCount"], 2)
         self.assertEqual(
             [source["name"] for source in result["_detail"]["sources"]],
-            ["Pinnacle", "FanDuel"],
+            ["Kalshi", "Pinnacle", "FanDuel"],
         )
-        self.assertEqual(result["_detail"]["sources"][0]["priceLabel"], "-150")
+        self.assertEqual(result["_detail"]["sources"][1]["priceLabel"], "-150")
+
+    def test_target_is_first_and_other_prediction_market_is_shown_when_matched(self):
+        results = build_prop_opportunities(
+            [
+                self.row("kalshi"),
+                self.row("polymarket", over_price=115, under_price=-125),
+                self.row("pinnacle", over_price=-150, under_price=130),
+                self.row("fanduel", over_price=-140, under_price=120),
+            ]
+        )
+        kalshi_result = next(
+            result for result in results if result["platform"]["name"] == "Kalshi"
+        )
+        polymarket_result = next(
+            result
+            for result in results
+            if result["platform"]["name"] == "Polymarket"
+        )
+
+        source_names = [
+            source["name"] for source in kalshi_result["_detail"]["sources"]
+        ]
+        self.assertEqual(source_names[0], "Kalshi")
+        self.assertIn("Polymarket", source_names)
+        polymarket_sources = [
+            source["name"]
+            for source in polymarket_result["_detail"]["sources"]
+        ]
+        self.assertEqual(polymarket_sources[0], "Polymarket")
+        self.assertIn("Kalshi", polymarket_sources)
+
+    def test_prophetx_outlier_does_not_create_false_value(self):
+        rows = [
+            self.row("kalshi", over_price=203, under_price=-230),
+            self.row("pinnacle", over_price=200, under_price=-230),
+            self.row("unibet", over_price=200, under_price=-230),
+            self.row("prophetx", over_price=-148, under_price=125),
+        ]
+
+        self.assertEqual(build_prop_opportunities(rows), [])
+
+    def test_prophetx_outlier_is_visible_but_excluded_from_valid_consensus(self):
+        rows = [
+            self.row("kalshi", over_price=-105, under_price=-110),
+            self.row("pinnacle", over_price=-150, under_price=130),
+            self.row("unibet", over_price=-145, under_price=125),
+            self.row("prophetx", over_price=200, under_price=-230),
+        ]
+
+        result = build_prop_opportunities(rows)[0]
+        prophetx = next(
+            source
+            for source in result["_detail"]["sources"]
+            if source["id"] == "prophetx"
+        )
+
+        self.assertEqual(result["consensus"]["sourceCount"], 2)
+        self.assertFalse(prophetx["includedInConsensus"])
+        self.assertEqual(prophetx["weight"], 0)
+        self.assertEqual(result["_detail"]["sources"][0]["id"], "kalshi")
+
+    def test_allows_pinnacle_as_the_only_reference_for_niche_market_coverage(self):
+        results = build_prop_opportunities(
+            [
+                self.row("kalshi"),
+                self.row("pinnacle", over_price=-150, under_price=130),
+            ]
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["consensus"]["sources"], ["Pinnacle"])
+
+    def test_rejects_high_ev_longshot_below_probability_floor(self):
+        longshot = build_prop_opportunities(
+            [
+                self.row("kalshi", over_price=600, under_price=-700),
+                self.row("pinnacle", over_price=400, under_price=-500),
+                self.row("fanduel", over_price=390, under_price=-490),
+            ]
+        )
+        balanced_target = self.row("kalshi", over_price=110, under_price=-125)
+        balanced_target["event_id"] = "event-2"
+        balanced_sharp = self.row("pinnacle", over_price=-125, under_price=105)
+        balanced_sharp["event_id"] = "event-2"
+        balanced_secondary = self.row("fanduel", over_price=-120, under_price=100)
+        balanced_secondary["event_id"] = "event-2"
+        balanced = build_prop_opportunities(
+            [balanced_target, balanced_sharp, balanced_secondary]
+        )[0]
+
+        self.assertEqual(longshot, [])
+        self.assertGreaterEqual(balanced["evaluation"]["hitProbability"], 50)
+
+    def test_allows_positive_ev_selection_between_thirty_and_fifty_percent(self):
+        result = build_prop_opportunities(
+            [
+                self.row("kalshi", over_price=220, under_price=-250),
+                self.row("pinnacle", over_price=180, under_price=-210),
+                self.row("fanduel", over_price=175, under_price=-205),
+            ]
+        )[0]
+
+        self.assertGreaterEqual(result["evaluation"]["hitProbability"], 30)
+        self.assertLess(result["evaluation"]["hitProbability"], 50)
+        self.assertGreater(result["ev"]["value"], 0)
+
+    def test_rejects_target_plus_130_when_sharps_offer_plus_160(self):
+        results = build_prop_opportunities(
+            [
+                self.row("kalshi", over_price=130, under_price=-200),
+                self.row("pinnacle", over_price=160, under_price=-180),
+                self.row("fanduel", over_price=155, under_price=-175),
+            ]
+        )
+
+        self.assertEqual(results, [])
 
     def test_rejects_explicitly_stale_target_row(self):
         target = self.row("kalshi")
@@ -214,6 +350,21 @@ class GameOpportunityCalculationTests(TestCase):
                         }
                     ],
                 },
+                {
+                    "key": "fanduel",
+                    "title": "FanDuel",
+                    "stale_seconds": 10,
+                    "markets": [
+                        {
+                            "key": market_key,
+                            "last_update": "2026-09-12T01:00:00Z",
+                            "outcomes": [
+                                {"name": "Home Team", "point": sharp_point, "price": -145},
+                                {"name": "Away Team", "point": -sharp_point if sharp_point else None, "price": 125},
+                            ],
+                        }
+                    ],
+                },
             ],
         }
 
@@ -223,13 +374,23 @@ class GameOpportunityCalculationTests(TestCase):
         self.assertEqual(result["_meta"]["market_type"], "game_market")
         self.assertEqual(result["market"]["title"], "Moneyline")
         self.assertEqual(result["price"]["oddsLabel"], "+200")
-        self.assertEqual(result["_detail"]["sources"][0]["priceLabel"], "-150")
+        self.assertEqual(result["_detail"]["sources"][0]["priceLabel"], "+200")
+        self.assertEqual(result["_detail"]["sources"][1]["priceLabel"], "-150")
 
     def test_does_not_compare_different_spread_lines(self):
         self.assertEqual(
             build_game_opportunities([self.event(target_point=-2.5, sharp_point=-3.5)]),
             [],
         )
+
+    def test_rejects_malformed_game_reference_underround(self):
+        event = self.event()
+        event["bookmakers"][1]["markets"][0]["outcomes"] = [
+            {"name": "Home Team", "price": 400},
+            {"name": "Away Team", "price": 400},
+        ]
+
+        self.assertEqual(build_game_opportunities([event]), [])
 
     def test_drops_game_target_older_than_configured_max_age(self):
         event = self.event()
@@ -474,6 +635,9 @@ class OpportunityRefreshTests(TestCase):
         self.sharp = OpportunityCalculationTests().row(
             "pinnacle", over_price=-150, under_price=130
         )
+        self.secondary = OpportunityCalculationTests().row(
+            "fanduel", over_price=-145, under_price=125
+        )
 
     def tearDown(self):
         cache.clear()
@@ -481,8 +645,8 @@ class OpportunityRefreshTests(TestCase):
     def test_explicit_refresh_replaces_removed_or_changed_target(self):
         client = Mock()
         client.get_props.side_effect = [
-            [self.target, self.sharp],
-            [self.sharp],
+            [self.target, self.sharp, self.secondary],
+            [self.sharp, self.secondary],
         ]
         client.get_game_odds.return_value = []
         service = OpportunityService(client=client)
@@ -498,7 +662,7 @@ class OpportunityRefreshTests(TestCase):
 
     def test_filtering_reuses_snapshot_without_polling_upstream(self):
         client = Mock()
-        client.get_props.return_value = [self.target, self.sharp]
+        client.get_props.return_value = [self.target, self.sharp, self.secondary]
         client.get_game_odds.return_value = []
         service = OpportunityService(client=client)
 
@@ -506,6 +670,60 @@ class OpportunityRefreshTests(TestCase):
         service.list({"platform": "kalshi"})
 
         self.assertEqual(client.get_props.call_count, 1)
+
+    def test_minimum_probability_filter_hides_lower_hit_chances(self):
+        client = Mock()
+        client.get_props.return_value = [self.target, self.sharp, self.secondary]
+        client.get_game_odds.return_value = []
+        service = OpportunityService(client=client)
+
+        visible = service.list({"min_probability": "50"}, force_refresh=True)
+        hidden = service.list({"min_probability": "60"})
+
+        self.assertEqual(len(visible["results"]), 1)
+        self.assertEqual(hidden["results"], [])
+
+    def test_default_feed_orders_eligible_results_by_ev_descending(self):
+        low_target = OpportunityCalculationTests().row(
+            "kalshi", over_price=-105, under_price=-110
+        )
+        low_target["event_id"] = "low-event"
+        low_sharp = OpportunityCalculationTests().row(
+            "pinnacle", over_price=-150, under_price=130
+        )
+        low_sharp["event_id"] = "low-event"
+        low_secondary = OpportunityCalculationTests().row(
+            "fanduel", over_price=-145, under_price=125
+        )
+        low_secondary["event_id"] = "low-event"
+
+        high_target = OpportunityCalculationTests().row("kalshi")
+        high_target["event_id"] = "high-event"
+        high_sharp = OpportunityCalculationTests().row(
+            "pinnacle", over_price=-150, under_price=130
+        )
+        high_sharp["event_id"] = "high-event"
+        high_secondary = OpportunityCalculationTests().row(
+            "fanduel", over_price=-145, under_price=125
+        )
+        high_secondary["event_id"] = "high-event"
+
+        client = Mock()
+        client.get_props.return_value = [
+            low_target,
+            low_sharp,
+            low_secondary,
+            high_target,
+            high_sharp,
+            high_secondary,
+        ]
+        client.get_game_odds.return_value = []
+
+        results = OpportunityService(client=client).list(
+            {}, force_refresh=True
+        )["results"]
+
+        self.assertGreater(results[0]["ev"]["value"], results[1]["ev"]["value"])
 
 
 class OpportunityEndpointTests(APITestCase):

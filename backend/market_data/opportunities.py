@@ -4,6 +4,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from statistics import median
 from threading import Lock
 
 from django.conf import settings
@@ -36,8 +37,8 @@ TARGET_BOOKS = {"kalshi": "Kalshi", "polymarket": "Polymarket"}
 REFERENCE_WEIGHTS = {
     "pinnacle": 5.0,
     "fanduel": 4.0,
-    "novig": 3.5,
-    "prophetx": 3.5,
+    "novig": 2.0,
+    "prophetx": 1.5,
     "bookmaker_eu": 3.0,
     "bet365": 2.5,
     "bovada": 2.5,
@@ -73,13 +74,24 @@ EVENT_PROP_MARKETS = {"both_teams_to_score"}
 SHARP_ANCHORS = {
     "pinnacle",
     "fanduel",
-    "novig",
-    "prophetx",
     "bookmaker_eu",
     "bet365",
     "bovada",
     "betonline",
 }
+SHARP_BASELINE_ORDER = (
+    "pinnacle",
+    "fanduel",
+    "bookmaker_eu",
+    "bet365",
+    "bovada",
+    "betonline",
+)
+MAX_BASELINE_PROBABILITY_GAP = 0.12
+MIN_BASELINE_ODDS_RATIO = 0.5
+MAX_BASELINE_ODDS_RATIO = 2.0
+MIN_REFERENCE_PROBABILITY_SUM = 0.9
+MAX_REFERENCE_PROBABILITY_SUM = 1.3
 
 
 def american_implied_probability(price):
@@ -239,12 +251,18 @@ def _prop_group_key(row):
     return str(event_key), _market_key(row), line
 
 
-def _fair_probabilities(row):
+def _fair_probabilities(row, validate_reference=False):
     over = american_implied_probability(row.get("over_price"))
     under = american_implied_probability(row.get("under_price"))
     if over is None or under is None or over + under <= 0:
         return None
     total = over + under
+    if validate_reference and not (
+        MIN_REFERENCE_PROBABILITY_SUM
+        <= total
+        <= MAX_REFERENCE_PROBABILITY_SUM
+    ):
+        return None
     return {"over": over / total, "under": under / total}
 
 
@@ -257,7 +275,7 @@ def _collect_references(target, rows, side):
             continue
         if not _row_is_current(candidate) or not _same_prop(target, candidate):
             continue
-        fair = _fair_probabilities(candidate)
+        fair = _fair_probabilities(candidate, validate_reference=True)
         price = candidate.get(f"{side}_price")
         if fair is None or american_implied_probability(price) is None:
             continue
@@ -285,8 +303,155 @@ def _weighted_consensus_probability(references):
     ) / total_weight
 
 
+def _probability_odds(probability):
+    if probability is None or not 0 < probability < 1:
+        return None
+    return probability / (1 - probability)
+
+
+def _filter_reference_outliers(references):
+    baseline = next(
+        (
+            reference
+            for source in SHARP_BASELINE_ORDER
+            for reference in references
+            if reference["book_key"] == source
+        ),
+        None,
+    )
+    if baseline is None:
+        return []
+    baseline_probability = baseline["fair_probability"]
+    baseline_odds = _probability_odds(baseline_probability)
+    if baseline_odds is None:
+        return []
+
+    included = []
+    for reference in references:
+        probability = reference["fair_probability"]
+        probability_odds = _probability_odds(probability)
+        if probability_odds is None:
+            continue
+        odds_ratio = probability_odds / baseline_odds
+        if (
+            abs(probability - baseline_probability)
+            <= MAX_BASELINE_PROBABILITY_GAP
+            and MIN_BASELINE_ODDS_RATIO
+            <= odds_ratio
+            <= MAX_BASELINE_ODDS_RATIO
+        ):
+            included.append(reference)
+    return included
+
+
 def _has_sharp_anchor(references):
     return any(reference["book_key"] in SHARP_ANCHORS for reference in references)
+
+
+def _has_sufficient_reference_consensus(references):
+    return len(references) >= 2 or (
+        len(references) == 1 and references[0]["book_key"] == "pinnacle"
+    )
+
+
+def _target_beats_sharp_median(target_decimal_odds, references):
+    sharp_prices = [
+        american_decimal_odds(reference.get("price"))
+        for reference in references
+        if reference.get("book_key") in SHARP_ANCHORS
+    ]
+    sharp_prices = [price for price in sharp_prices if price is not None]
+    return bool(
+        sharp_prices
+        and float(target_decimal_odds) > median(sharp_prices) + 1e-9
+    )
+
+
+def _meets_hit_probability_floor(fair_probability):
+    return (
+        fair_probability * 100
+        >= settings.MARKET_DATA_MIN_HIT_PROBABILITY_PERCENT
+    )
+
+
+def _reference_price_cards(
+    platform,
+    platform_title,
+    target_price,
+    target_probability,
+    matched_references,
+    consensus_references,
+):
+    included_sources = {
+        reference["book_key"] for reference in consensus_references
+    }
+    cards = [
+        {
+            "id": platform,
+            "name": platform_title,
+            "priceLabel": _format_american(target_price),
+            "odds": target_price,
+            "impliedProbability": round(target_probability, 4),
+            "isTarget": True,
+            "includedInConsensus": False,
+            "subLabel": f"Target · {target_probability * 100:.1f}% implied",
+        }
+    ]
+    for reference in matched_references:
+        included = reference["book_key"] in included_sources
+        cards.append(
+            {
+                "id": reference["book_key"],
+                "name": reference["book_title"],
+                "priceLabel": _format_american(reference["price"]),
+                "odds": reference["price"],
+                "fairProbability": round(reference["fair_probability"], 4),
+                "weight": reference["weight"] if included else 0,
+                "isTarget": False,
+                "includedInConsensus": included,
+                "subLabel": (
+                    f"{reference['fair_probability'] * 100:.1f}% no-vig"
+                    f" · {reference['weight']:g}× weight"
+                    if included
+                    else "Excluded from consensus · price outlier"
+                ),
+            }
+        )
+    return cards
+
+
+def probability_aware_evaluation(fair_probability, decimal_odds, net_ev_percent):
+    """Describe hit likelihood and produce a Kelly-based ranking value.
+
+    EV remains the expected return per dollar. The Kelly fraction divides that
+    edge by the profit multiple, which prevents large-payout, low-probability
+    outcomes from automatically dominating the default ordering.
+    """
+    probability = max(0.0, min(float(fair_probability), 1.0))
+    profit_multiple = max(0.0, float(decimal_odds) - 1.0)
+    net_edge = max(0.0, float(net_ev_percent) / 100.0)
+    full_kelly = min(1.0, net_edge / profit_multiple) if profit_multiple else 0.0
+    quarter_kelly = full_kelly * 0.25
+
+    if probability < 0.25:
+        tier, tier_label = "longshot", "Longshot"
+    elif probability < 0.5:
+        tier, tier_label = "lower", "Lower hit chance"
+    elif probability < 0.65:
+        tier, tier_label = "moderate", "Moderate hit chance"
+    else:
+        tier, tier_label = "higher", "Higher hit chance"
+
+    return {
+        "hitProbability": round(probability * 100, 2),
+        "hitProbabilityLabel": f"{probability * 100:.1f}%",
+        "missProbability": round((1.0 - probability) * 100, 2),
+        "tier": tier,
+        "tierLabel": tier_label,
+        "kellyPercent": round(full_kelly * 100, 2),
+        "quarterKellyPercent": round(quarter_kelly * 100, 2),
+        "rankScore": round(full_kelly * 100, 4),
+    }
 
 
 def _format_american(price):
@@ -339,19 +504,29 @@ def build_prop_opportunities(rows):
             target_price = target.get(f"{side}_price")
             target_probability = american_implied_probability(target_price)
             decimal_odds = american_decimal_odds(target_price)
-            references = _collect_references(
+            matched_references = _collect_references(
                 target, rows_by_market[_prop_group_key(target)], side
             )
+            references = _filter_reference_outliers(matched_references)
             fair_probability = _weighted_consensus_probability(references)
             if target_probability is None or decimal_odds is None or fair_probability is None:
                 continue
+            if not _has_sufficient_reference_consensus(references):
+                continue
             if not _has_sharp_anchor(references):
+                continue
+            if not _target_beats_sharp_median(decimal_odds, references):
+                continue
+            if not _meets_hit_probability_floor(fair_probability):
                 continue
 
             gross_ev_percent = (fair_probability * decimal_odds - 1) * 100
             net_ev_percent = gross_ev_percent - cost_allowance
             if net_ev_percent <= 0:
                 continue
+            evaluation = probability_aware_evaluation(
+                fair_probability, decimal_odds, net_ev_percent
+            )
 
             player = target.get("player_name") or target.get("player") or "Selection"
             canonical_market_key = _market_key(target)
@@ -390,6 +565,7 @@ def build_prop_opportunities(rows):
                     },
                     "consensus": {
                         "label": f"{fair_probability * 100:.1f}%",
+                        "probability": round(fair_probability, 4),
                         "sourceCount": len(references),
                         "sources": source_names,
                     },
@@ -398,6 +574,7 @@ def build_prop_opportunities(rows):
                         "value": round(net_ev_percent, 2),
                         "isPositive": True,
                     },
+                    "evaluation": evaluation,
                     "hasDetail": True,
                     "_meta": {
                         "platform": platform,
@@ -414,21 +591,14 @@ def build_prop_opportunities(rows):
                         ).lower(),
                     },
                     "_detail": {
-                        "sources": [
-                            {
-                                "id": reference["book_key"],
-                                "name": reference["book_title"],
-                                "priceLabel": _format_american(reference["price"]),
-                                "odds": reference["price"],
-                                "fairProbability": round(reference["fair_probability"], 4),
-                                "weight": reference["weight"],
-                                "subLabel": (
-                                    f"{reference['fair_probability'] * 100:.1f}% no-vig"
-                                    f" · {reference['weight']:g}× weight"
-                                ),
-                            }
-                            for reference in references
-                        ],
+                        "sources": _reference_price_cards(
+                            platform,
+                            platform_title,
+                            target_price,
+                            target_probability,
+                            matched_references,
+                            references,
+                        ),
                         "target": {
                             "name": platform_title,
                             "side": side_title,
@@ -453,6 +623,19 @@ def build_prop_opportunities(rows):
                                 "label": "Estimated EV after costs",
                                 "value": f"+{net_ev_percent:.1f}%",
                                 "isPositive": True,
+                            },
+                            {
+                                "label": "Estimated hit chance",
+                                "value": (
+                                    f"{evaluation['hitProbabilityLabel']}"
+                                    f" · {evaluation['tierLabel']}"
+                                ),
+                                "isPositive": False,
+                            },
+                            {
+                                "label": "Quarter-Kelly reference",
+                                "value": f"{evaluation['quarterKellyPercent']:.2f}% of bankroll",
+                                "isPositive": False,
                             },
                             {
                                 "label": "Target quote",
@@ -563,7 +746,11 @@ def _find_game_reference(target_market, target_outcome, source, book):
         if any(probability is None for probability in probabilities):
             continue
         total = sum(probabilities)
-        if total <= 0:
+        if not (
+            MIN_REFERENCE_PROBABILITY_SUM
+            <= total
+            <= MAX_REFERENCE_PROBABILITY_SUM
+        ):
             continue
         return {
             "book_key": source,
@@ -647,9 +834,10 @@ def build_game_opportunities(events):
                     target_price = outcome.get("price")
                     target_probability = american_implied_probability(target_price)
                     decimal_odds = american_decimal_odds(target_price)
-                    references = _collect_game_references(
+                    matched_references = _collect_game_references(
                         market, outcome, books, platform
                     )
+                    references = _filter_reference_outliers(matched_references)
                     fair_probability = _weighted_consensus_probability(references)
                     if (
                         target_probability is None
@@ -657,7 +845,13 @@ def build_game_opportunities(events):
                         or fair_probability is None
                     ):
                         continue
+                    if not _has_sufficient_reference_consensus(references):
+                        continue
                     if not _has_sharp_anchor(references):
+                        continue
+                    if not _target_beats_sharp_median(decimal_odds, references):
+                        continue
+                    if not _meets_hit_probability_floor(fair_probability):
                         continue
 
                     net_ev_percent = (
@@ -665,6 +859,9 @@ def build_game_opportunities(events):
                     )
                     if net_ev_percent <= 0:
                         continue
+                    evaluation = probability_aware_evaluation(
+                        fair_probability, decimal_odds, net_ev_percent
+                    )
 
                     identifier = _game_opportunity_id(platform, event, market, outcome)
                     if identifier in seen_ids:
@@ -705,6 +902,7 @@ def build_game_opportunities(events):
                             },
                             "consensus": {
                                 "label": f"{fair_probability * 100:.1f}%",
+                                "probability": round(fair_probability, 4),
                                 "sourceCount": len(references),
                                 "sources": source_names,
                             },
@@ -713,6 +911,7 @@ def build_game_opportunities(events):
                                 "value": round(net_ev_percent, 2),
                                 "isPositive": True,
                             },
+                            "evaluation": evaluation,
                             "hasDetail": True,
                             "_meta": {
                                 "platform": platform,
@@ -729,21 +928,14 @@ def build_game_opportunities(events):
                                 ).lower(),
                             },
                             "_detail": {
-                                "sources": [
-                                    {
-                                        "id": reference["book_key"],
-                                        "name": reference["book_title"],
-                                        "priceLabel": _format_american(reference["price"]),
-                                        "odds": reference["price"],
-                                        "fairProbability": round(reference["fair_probability"], 4),
-                                        "weight": reference["weight"],
-                                        "subLabel": (
-                                            f"{reference['fair_probability'] * 100:.1f}% no-vig"
-                                            f" · {reference['weight']:g}× weight"
-                                        ),
-                                    }
-                                    for reference in references
-                                ],
+                                "sources": _reference_price_cards(
+                                    platform,
+                                    platform_title,
+                                    target_price,
+                                    target_probability,
+                                    matched_references,
+                                    references,
+                                ),
                                 "target": {
                                     "name": platform_title,
                                     "line": point,
@@ -769,6 +961,22 @@ def build_game_opportunities(events):
                                         "isPositive": True,
                                     },
                                     {
+                                        "label": "Estimated hit chance",
+                                        "value": (
+                                            f"{evaluation['hitProbabilityLabel']}"
+                                            f" · {evaluation['tierLabel']}"
+                                        ),
+                                        "isPositive": False,
+                                    },
+                                    {
+                                        "label": "Quarter-Kelly reference",
+                                        "value": (
+                                            f"{evaluation['quarterKellyPercent']:.2f}%"
+                                            " of bankroll"
+                                        ),
+                                        "isPositive": False,
+                                    },
+                                    {
                                         "label": "Target quote",
                                         "value": f"{platform_title} {target_odds}",
                                         "isPositive": False,
@@ -789,7 +997,7 @@ def build_game_opportunities(events):
 
 
 class OpportunityService:
-    cache_key = "market_data:opportunities:direct-targets:v3"
+    cache_key = "market_data:opportunities:thirty-percent-floor:v9"
     _refresh_lock = Lock()
 
     def __init__(self, client=None, kalshi_client=None, polymarket_client=None):
@@ -917,7 +1125,14 @@ class OpportunityService:
             *build_game_opportunities(game_events),
             *build_prop_opportunities(prop_rows),
         ]
-        opportunities.sort(key=lambda item: item["ev"]["value"], reverse=True)
+        opportunities.sort(
+            key=lambda item: (
+                item["ev"]["value"],
+                item["evaluation"]["hitProbability"],
+                item["evaluation"]["rankScore"],
+            ),
+            reverse=True,
+        )
         snapshot = {
             "updated_at": datetime.now(timezone.utc).isoformat(),
             "is_complete": not failures,
@@ -951,6 +1166,13 @@ class OpportunityService:
             min_ev = max(0.0, float(params.get("min_ev", settings.MARKET_DATA_MIN_EV_PERCENT)))
         except (TypeError, ValueError):
             min_ev = settings.MARKET_DATA_MIN_EV_PERCENT
+        try:
+            min_probability = max(
+                settings.MARKET_DATA_MIN_HIT_PROBABILITY_PERCENT,
+                min(100.0, float(params.get("min_probability", 30))),
+            )
+        except (TypeError, ValueError):
+            min_probability = settings.MARKET_DATA_MIN_HIT_PROBABILITY_PERCENT
 
         results = []
         for item in snapshot["opportunities"]:
@@ -964,6 +1186,8 @@ class OpportunityService:
             if search and search not in meta["search"]:
                 continue
             if item["ev"]["value"] < min_ev:
+                continue
+            if item["evaluation"]["hitProbability"] < min_probability:
                 continue
             results.append({key: value for key, value in item.items() if not key.startswith("_")})
 
@@ -1022,6 +1246,17 @@ def filter_config():
                     {"value": "3", "label": "+3% or better"},
                     {"value": "5", "label": "+5% or better"},
                     {"value": "10", "label": "+10% or better"},
+                ],
+            },
+            {
+                "id": "min_probability",
+                "label": "Minimum hit chance",
+                "options": [
+                    {"value": "30", "label": "30% or higher"},
+                    {"value": "40", "label": "40% or higher"},
+                    {"value": "50", "label": "50% or higher"},
+                    {"value": "60", "label": "60% or higher"},
+                    {"value": "65", "label": "65% or higher"},
                 ],
             },
         ],
