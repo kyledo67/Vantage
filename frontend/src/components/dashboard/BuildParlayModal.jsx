@@ -4,10 +4,12 @@ import {
   computeEstimatedChance,
   computeEstimatedEdge,
   findDuplicateEventGroups,
+  getMarketHandoffUrl,
 } from '../../utils/parlay.js'
 
 function SelectedItem({ opportunity, onRemove }) {
   const { selection, market, platform, price, ev } = opportunity
+  const marketUrl = getMarketHandoffUrl(opportunity)
   return (
     <li className="flex items-start justify-between gap-4 border-b border-vantage-border/60 px-6 py-5 last:border-b-0">
       <div className="min-w-0 flex-1">
@@ -26,14 +28,26 @@ function SelectedItem({ opportunity, onRemove }) {
           {ev?.label && <span className="text-vantage-positive">{ev.label} EV</span>}
         </div>
       </div>
-      <button
-        type="button"
-        onClick={() => onRemove(opportunity.id)}
-        aria-label={selection?.title ? `Remove ${selection.title}` : 'Remove selection'}
-        className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-md text-vantage-textDim transition-colors hover:bg-vantage-surface hover:text-vantage-text"
-      >
-        ✕
-      </button>
+      <div className="flex flex-shrink-0 items-center gap-2">
+        {marketUrl && (
+          <a
+            href={marketUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-[44px] items-center rounded-full border border-vantage-border px-4 text-xs font-semibold text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent"
+          >
+            Open market ↗
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={() => onRemove(opportunity.id)}
+          aria-label={selection?.title ? `Remove ${selection.title}` : 'Remove selection'}
+          className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-md text-vantage-textDim transition-colors hover:bg-vantage-surface hover:text-vantage-text"
+        >
+          ✕
+        </button>
+      </div>
     </li>
   )
 }
@@ -184,7 +198,7 @@ export default function BuildParlayModal({ open, onClose, selections, onRemove, 
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-4 border-t border-vantage-border px-6 py-5">
+              <div className="flex flex-wrap items-center justify-end gap-4 border-t border-vantage-border px-6 py-5">
                 <button
                   type="button"
                   onClick={onClose}
@@ -196,7 +210,7 @@ export default function BuildParlayModal({ open, onClose, selections, onRemove, 
                   type="button"
                   onClick={handleSave}
                   disabled={!canSave}
-                  className="flex min-h-[62px] items-center rounded-full bg-vantage-accent px-8 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base font-medium text-vantage-text transition-colors hover:border-vantage-borderLight disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Save to My Parlays
                 </button>

@@ -18,7 +18,7 @@ from .clients import (
 )
 from .target_markets import (
     KALSHI_SERIES,
-    POLYMARKET_SERIES,
+    POLYMARKET_LEAGUES,
     merge_direct_targets,
     normalize_kalshi_events,
     normalize_polymarket_events,
@@ -33,7 +33,7 @@ SPORTS = {
     "basketball_wnba": {"label": "WNBA", "short": "wnba"},
     "soccer_epl": {"label": "EPL", "short": "epl"},
 }
-TARGET_BOOKS = {"kalshi": "Kalshi", "polymarket": "Polymarket"}
+TARGET_BOOKS = {"kalshi": "Kalshi", "polymarket": "Polymarket US"}
 REFERENCE_WEIGHTS = {
     "pinnacle": 5.0,
     "fanduel": 4.0,
@@ -561,6 +561,15 @@ def build_prop_opportunities(rows):
                     },
                     "market": {"title": market_title, "subtitle": line_label},
                     "platform": {"name": platform_title},
+                    "action": {
+                        "platform": platform,
+                        "marketUrl": (
+                            target.get(f"{side}_url")
+                            or target.get("url")
+                            or target.get("link")
+                        ),
+                        "comboPrefillSupported": False,
+                    },
                     "price": {
                         "label": f"{target_cents:.1f}¢ · {target_odds}",
                         "odds": target_price,
@@ -653,7 +662,11 @@ def build_prop_opportunities(rows):
                             },
                         ],
                         "updatedAt": _row_updated_at(target),
-                        "sourceUrl": target.get("url") or target.get("link"),
+                        "sourceUrl": (
+                            target.get(f"{side}_url")
+                            or target.get("url")
+                            or target.get("link")
+                        ),
                         "disclaimer": "Informational estimate. Prices change and results are not guaranteed.",
                     },
                 }
@@ -912,6 +925,15 @@ def build_game_opportunities(events):
                             },
                             "market": {"title": market_title, "subtitle": subtitle},
                             "platform": {"name": platform_title},
+                            "action": {
+                                "platform": platform,
+                                "marketUrl": (
+                                    outcome.get("url")
+                                    or market.get("url")
+                                    or target_book.get("link")
+                                ),
+                                "comboPrefillSupported": False,
+                            },
                             "price": {
                                 "label": f"{target_cents:.1f}¢ · {target_odds}",
                                 "odds": target_price,
@@ -1011,7 +1033,11 @@ def build_game_opportunities(events):
                                     },
                                 ],
                                 "updatedAt": updated_at,
-                                "sourceUrl": target_book.get("link"),
+                                "sourceUrl": (
+                                    outcome.get("url")
+                                    or market.get("url")
+                                    or target_book.get("link")
+                                ),
                                 "disclaimer": "Informational estimate. Prices change and results are not guaranteed.",
                             },
                         }
@@ -1020,7 +1046,7 @@ def build_game_opportunities(events):
 
 
 class OpportunityService:
-    cache_key = "market_data:opportunities:thirty-percent-floor:v9"
+    cache_key = "market_data:opportunities:polymarket-us:v10"
     _refresh_lock = Lock()
 
     def __init__(self, client=None, kalshi_client=None, polymarket_client=None):
@@ -1096,9 +1122,9 @@ class OpportunityService:
             )
         if self.polymarket_client:
             target_jobs.extend(
-                ("polymarket", sport, series_id, None)
+                ("polymarket", sport, league_slug, None)
                 for sport in sports
-                if (series_id := POLYMARKET_SERIES.get(sport))
+                if (league_slug := POLYMARKET_LEAGUES.get(sport))
             )
 
         def load_target(job):
@@ -1137,6 +1163,26 @@ class OpportunityService:
 
         if not loaded_sports and failures:
             raise MarketDataError(failures[0]["error"])
+
+        # ParlayAPI may still label rows from the international Polymarket
+        # product as "polymarket". When the U.S. gateway client is active,
+        # remove those rows before merging so every target quote and link comes
+        # from Polymarket US itself. Direct U.S. rows are appended below and can
+        # still act as references for matching Kalshi opportunities.
+        if self.polymarket_client:
+            prop_rows = [
+                row for row in prop_rows if _source_key(row) != "polymarket"
+            ]
+            for event in game_events:
+                event["bookmakers"] = [
+                    book
+                    for book in event.get("bookmakers", [])
+                    if SOURCE_ALIASES.get(
+                        str(book.get("key") or "").lower(),
+                        str(book.get("key") or "").lower(),
+                    )
+                    != "polymarket"
+                ]
 
         game_events, prop_rows = merge_direct_targets(
             game_events,
@@ -1218,7 +1264,7 @@ class OpportunityService:
             "live": {
                 "isLive": snapshot["is_complete"],
                 "updatedAt": snapshot["updated_at"],
-                "source": "ParlayAPI + Kalshi + Polymarket",
+                "source": "ParlayAPI + Kalshi + Polymarket US",
                 "sportsLoaded": snapshot["loaded_sports"],
                 "sportsFailed": snapshot["failed_sports"],
             },
@@ -1248,7 +1294,7 @@ def filter_config():
                 "label": "All platforms",
                 "options": [
                     {"value": "kalshi", "label": "Kalshi"},
-                    {"value": "polymarket", "label": "Polymarket"},
+                    {"value": "polymarket", "label": "Polymarket US"},
                 ],
             },
             {

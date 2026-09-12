@@ -71,7 +71,7 @@ None.
 | `integrations.persona_webhook` | `true` when the Persona webhook signing secret has a value. |
 | `integrations.parlay_api` | `true` when `PARLAY_API_KEY` has a value. |
 | `integrations.kalshi` | `true` when the public Kalshi base URL is configured. |
-| `integrations.polymarket` | `true` when the public Polymarket Gamma base URL is configured. |
+| `integrations.polymarket` | `true` when the public Polymarket US gateway base URL is configured. |
 | `integrations.supabase` | `true` when the Supabase project URL has a value. |
 
 ## Current user profile
@@ -211,7 +211,7 @@ consumed by the React Settings page. The profile is created automatically when a
 The email comes from the verified Supabase session. Persona controls
 `verification_status`, `is_age_verified`, `residence_country_code`, and
 `residence_subdivision`; all are read-only. The response also gives separate Kalshi
-and Polymarket.com eligibility pre-screens. These combine Persona approval with the
+and Polymarket US eligibility pre-screens. These combine Persona approval with the
 current platform residence rules and do not replace either platform's own onboarding
 or live physical-location checks.
 
@@ -260,19 +260,18 @@ signatures older than five minutes, ignores duplicate/out-of-order events, and a
 verification only for the configured inquiry template.
 
 Only an `approved` Persona inquiry sets `is_age_verified=true`. Market eligibility also
-requires the approved inquiry to contain `fields.address-country-code`; countries with
-region-level Polymarket restrictions also require `fields.address-subdivision`.
+requires the approved inquiry to contain `fields.address-country-code`.
 Completed and review states remain pending; declined, failed, and expired states remain
 unverified. The backend stores only the normalized residence country/region needed for
 the pre-screen, not the user's birthdate, street address, or identity document.
 
-The country lists are checked in `market_data/eligibility.py`. They reflect Kalshi's
-June 17, 2026 Member Agreement and Polymarket.com's geographic-restrictions page as of
-September 12, 2026. They must be reviewed when either platform changes its rules.
+The residence rules are checked in `market_data/eligibility.py`. They reflect Kalshi's
+June 17, 2026 Member Agreement and Polymarket US's current U.S.-resident positioning as
+of September 12, 2026. They must be reviewed when either platform changes its rules.
 
 ## +EV opportunity finder
 
-The finder reads executable target asks directly from Kalshi and Polymarket and asks
+The finder reads executable target asks directly from Kalshi and Polymarket US and asks
 ParlayAPI for the corresponding sportsbook and exchange references. Supported target
 markets include player props, moneylines, spreads, game totals, team totals,
 both-teams-to-score, and EPL total corners. Django matches equivalent markets, removes
@@ -302,7 +301,7 @@ GET /api/opportunities/?category=americanfootball_nfl&platform=kalshi&market_typ
 | `min_ev` | No | `1` | Minimum net EV percentage. Defaults to `0`. Negative-EV results are never returned. |
 | `min_probability` | No | `30` | Minimum estimated hit probability from `30` through `100`. Values below `30` are raised to the hard `30%` floor. |
 | `search` | No | `mahomes` | Case-insensitive search across event, selection, market, and platform names. |
-| `refresh` | No | `true` | Fetches new ParlayAPI references and direct Kalshi/Polymarket asks. Omit it when changing filters so no credits are spent. |
+| `refresh` | No | `true` | Fetches new ParlayAPI references and direct Kalshi/Polymarket US asks. Omit it when changing filters so no credits are spent. |
 
 Configured category values are currently:
 
@@ -322,7 +321,7 @@ soccer_epl
   "live": {
     "isLive": true,
     "updatedAt": "2026-09-12T05:00:00+00:00",
-    "source": "ParlayAPI + Kalshi + Polymarket",
+    "source": "ParlayAPI + Kalshi + Polymarket US",
     "sportsLoaded": ["baseball_mlb", "americanfootball_nfl"],
     "sportsFailed": []
   },
@@ -340,6 +339,11 @@ soccer_epl
       },
       "platform": {
         "name": "Kalshi"
+      },
+      "action": {
+        "platform": "kalshi",
+        "marketUrl": "https://kalshi.com/markets/kxnflgame",
+        "comboPrefillSupported": false
       },
       "price": {
         "label": "27.0¢ · +270",
@@ -378,9 +382,11 @@ soccer_epl
 | --- | --- |
 | `live` | Reports when the current snapshot was fetched. `isLive` is false when one or more configured sports failed to refresh. |
 | `id` | Stable hash of the platform, event, market, line, and selection. Use it for the detail route. |
+| `action.marketUrl` | Direct Kalshi or Polymarket US market/series page used by the frontend handoff. It is an external URL and does not place an order. |
+| `action.comboPrefillSupported` | Always `false` while neither platform has a documented public Combo-prefill URL or API. |
 | `price.label` | Frontend-ready target price with probability-style cents and American odds. |
 | `price.odds` | Numeric American odds from the target platform. |
-| `price.source` | Identifies whether the target odds came from Kalshi or Polymarket. |
+| `price.source` | Identifies whether the target odds came from Kalshi or Polymarket US. |
 | `consensus.label` | Weighted, no-vig probability across matched reference books. |
 | `consensus.sources` | Names of the books that contributed to this result. |
 | `ev.value` | Estimated net expected return percentage after the configured cost allowance. |
@@ -524,7 +530,7 @@ None.
       "label": "All platforms",
       "options": [
         {"value": "kalshi", "label": "Kalshi"},
-        {"value": "polymarket", "label": "Polymarket"}
+        {"value": "polymarket", "label": "Polymarket US"}
       ]
     },
     {
@@ -553,7 +559,7 @@ None.
 
 ## EV calculation
 
-For every Kalshi or Polymarket outcome, the backend:
+For every Kalshi or Polymarket US outcome, the backend:
 
 1. Matches the same sport, event, market, exact line, and side. Player props also
    require the same player and statistic.
@@ -616,13 +622,13 @@ displayed two-sided margin.
 - The first opportunity request after a backend restart fetches one player-props
   snapshot and one game-odds snapshot for each configured sport.
 - Changing filters reads the current Django snapshot and does not spend API credits.
-- `refresh=true` fetches new ParlayAPI references and direct Kalshi/Polymarket target
+- `refresh=true` fetches new ParlayAPI references and direct Kalshi/Polymarket US target
   asks, then completely replaces the previous snapshot.
 - The ParlayAPI request uses `maxAgeSec` so rows older than the configured freshness
   bound are excluded. The default bound is 300 seconds to accommodate the current
   Kalshi refresh cadence.
 - Because snapshots are replaced rather than merged, a moved or withdrawn Kalshi or
-  Polymarket line is updated or removed on refresh.
+  Polymarket US line is updated or removed on refresh.
 - Game opportunities require a complete two-sided target market and an upcoming
   event. This prevents a one-sided season/futures contract from being compared with
   an individual game's moneyline, spread, or total.
@@ -706,27 +712,42 @@ EPL both-teams-to-score, and EPL total corners.
 
 Documentation: <https://docs.kalshi.com/api-reference/market/get-market>
 
-### Polymarket public APIs — implemented for discovery and executable asks
+### Polymarket US public API — implemented for discovery and executable asks
 
-Configured base URLs:
-
-```text
-https://gamma-api.polymarket.com
-https://clob.polymarket.com
-```
-
-Current call, repeated for the configured league series:
+Configured base URL:
 
 ```text
-GET /events?series_id={id}&active=true&closed=false
+https://gateway.polymarket.us
 ```
 
-The finder uses Gamma's `bestAsk` for the first outcome and the complementary price of
-`bestBid` for the opposite outcome. It requires both sides to be available and ignores
-closed, inactive, unmatched, and already-started markets. No wallet or trading
-credentials are collected.
+Current call, repeated for each configured league slug:
 
-Documentation: <https://docs.polymarket.com/market-data/overview>
+```text
+GET /v2/leagues/{slug}/events?active=true&closed=false
+```
+
+The finder reads each nested market side's executable `quote.value`. It requires both
+sides to have tradable quotes, ignores closed and already-started markets, and builds an
+exact Polymarket US URL from the league, event slug, market slug, and outcome ID. The
+gateway is public and does not require a key. No wallet or trading credentials are
+collected.
+
+Documentation: <https://docs.polymarket.us/api-reference/sports/get-events-by-league-slug>
+
+### Kalshi and Polymarket US market handoff — implemented
+
+Each opportunity includes an `action.marketUrl` for its Kalshi series or Polymarket US
+event. The parlay builder displays a compact **Open market** link beside every selected
+leg. Each link opens that leg's relevant platform page in a separate tab, including when
+the user has selected several legs or a mix of Kalshi and Polymarket US opportunities.
+
+The handoff does not place an order or prefill the platform's Combo Builder.
+Neither platform documents a public Combo-prefill URL in its current public API. The
+user adds eligible legs, reviews the live quote, and confirms on the platform. No
+Kalshi API key, Polymarket US account, or trading credential is collected by Vantage.
+
+Polymarket US currently limits Combos to supported sports moneyline, spread, and total
+markets. Platform eligibility and current Combo availability remain authoritative.
 
 ### Persona — implemented
 
@@ -760,8 +781,7 @@ SUPABASE_PUBLISHABLE_KEY
 PARLAY_API_KEY
 PARLAY_API_BASE_URL
 KALSHI_API_BASE_URL
-POLYMARKET_GAMMA_API_BASE_URL
-POLYMARKET_CLOB_API_BASE_URL
+POLYMARKET_US_API_BASE_URL
 PERSONA_API_KEY
 PERSONA_INQUIRY_TEMPLATE_ID
 PERSONA_API_BASE_URL

@@ -105,11 +105,8 @@ KALSHI_API_BASE_URL = env(
     "KALSHI_API_BASE_URL",
     default="https://api.elections.kalshi.com/trade-api/v2",
 )
-POLYMARKET_GAMMA_API_BASE_URL = env(
-    "POLYMARKET_GAMMA_API_BASE_URL", default="https://gamma-api.polymarket.com"
-)
-POLYMARKET_CLOB_API_BASE_URL = env(
-    "POLYMARKET_CLOB_API_BASE_URL", default="https://clob.polymarket.com"
+POLYMARKET_US_API_BASE_URL = env(
+    "POLYMARKET_US_API_BASE_URL", default="https://gateway.polymarket.us"
 )
 MARKET_DATA_SPORTS = env.list(
     "MARKET_DATA_SPORTS",

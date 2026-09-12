@@ -82,7 +82,7 @@ def build_settings_response(profile, email):
         },
         {
             "id": "polymarket_eligibility",
-            "label": "Polymarket.com eligibility pre-screen",
+            "label": "Polymarket US eligibility pre-screen",
             "description": eligibility["platforms"]["polymarket"]["reason"],
             "type": "text",
             "value": eligibility["platforms"]["polymarket"]["status"].replace("_", " ").title(),
@@ -91,7 +91,7 @@ def build_settings_response(profile, email):
         {
             "id": "is_age_verified",
             "label": "18+ verified",
-            "description": "This does not replace Kalshi or Polymarket location and eligibility checks.",
+            "description": "This does not replace Kalshi or Polymarket US location and eligibility checks.",
             "type": "toggle",
             "value": profile.is_age_verified,
             "readOnly": True,
@@ -186,7 +186,7 @@ class HealthView(APIView):
                     "persona_webhook": bool(settings.PERSONA_WEBHOOK_SECRET),
                     "parlay_api": bool(settings.PARLAY_API_KEY),
                     "kalshi": bool(settings.KALSHI_API_BASE_URL),
-                    "polymarket": bool(settings.POLYMARKET_GAMMA_API_BASE_URL),
+                    "polymarket": bool(settings.POLYMARKET_US_API_BASE_URL),
                     "supabase": bool(settings.SUPABASE_URL),
                 },
             }
