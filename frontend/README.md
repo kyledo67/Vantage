@@ -45,7 +45,7 @@ The frontend expects a Django REST API at `/api` (proxied in dev via `vite.confi
 - `GET /api/market-health`
 - `GET /api/data-freshness`
 
-The frontend never calls PropLine, Kalshi, Polymarket, or Gemini directly — only our own
+The frontend never calls ParlayAPI, Kalshi, Polymarket, or Gemini directly — only our own
 backend, which serves cached/normalized data.
 
 ## Product constraints reflected in the UI

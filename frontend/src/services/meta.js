@@ -12,14 +12,14 @@ export async function getSports() {
 
 export async function getMarketHealth() {
   if (USE_MOCKS) {
-    return { status: 'ok', kalshi: 'ok', polymarket: 'ok', propline: 'ok' }
+    return { status: 'ok', kalshi: 'ok', polymarket: 'ok', parlayApi: 'ok' }
   }
   return api.get('/market-health')
 }
 
 export async function getDataFreshness() {
   if (USE_MOCKS) {
-    return { lastRefreshedAt: new Date().toISOString(), refreshIntervalSeconds: 45 }
+    return { lastRefreshedAt: new Date().toISOString(), refreshMode: 'manual' }
   }
   return api.get('/data-freshness')
 }

@@ -100,7 +100,7 @@ function EmptyState({ onRefresh }) {
   )
 }
 
-function ErrorState({ onRetry }) {
+function ErrorState({ onRetry, message }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
       <svg width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
@@ -111,8 +111,8 @@ function ErrorState({ onRetry }) {
       <div>
         <p className="text-sm font-medium text-vantage-text">Couldn&apos;t load opportunities</p>
         <p className="mt-1 max-w-sm text-xs text-vantage-textDim">
-          The market data service didn&apos;t respond. Nothing is shown rather than risk
-          displaying stale prices.
+          {message ||
+            'The market data service did not respond. Refresh to request current prices.'}
         </p>
       </div>
       <button
@@ -129,6 +129,7 @@ function ErrorState({ onRetry }) {
 export default function OpportunitiesTable({
   status,
   rows,
+  error,
   onRetry,
   expandedId,
   onToggle,
@@ -146,7 +147,7 @@ export default function OpportunitiesTable({
       <TableHeader />
 
       {(status === 'loading' || status === 'idle') && <TableSkeleton />}
-      {status === 'error' && <ErrorState onRetry={onRetry} />}
+      {status === 'error' && <ErrorState onRetry={onRetry} message={error?.message} />}
       {status === 'success' && rows.length === 0 && <EmptyState onRefresh={onRetry} />}
 
       {status === 'success' &&

@@ -7,9 +7,9 @@ import { api } from './api.js'
  *
  * ── Expected response shapes ──────────────────────────────────────────────
  *
- * GET /api/opportunities?category&search&{filterId}=value
+ * GET /api/opportunities?category&search&{filterId}=value&refresh=true
  *   {
- *     "live":    { "isLive": true, "updatedAt": "<ISO8601>" } | null,
+ *     "live":    { "isLive": true, "updatedAt": "<ISO8601>", "source": "ParlayAPI" } | null,
  *     "results": [ Opportunity ]
  *   }
  *
@@ -20,7 +20,7 @@ import { api } from './api.js'
  *     "selection": { "title", "subtitle", "avatarUrl", "tags": ["<string>"] },
  *     "market":    { "title", "subtitle" },
  *     "platform":  { "name", "iconUrl" },
- *     "price":     { "label" },
+ *     "price":     { "label", "odds", "oddsLabel", "source" },
  *     "consensus": { "label" },
  *     "ev":        { "label", "value": <number>, "isPositive": <boolean> },
  *     "hasDetail": <boolean>

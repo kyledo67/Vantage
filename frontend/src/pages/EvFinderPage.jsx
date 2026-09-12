@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import TabsAndFilters from '../components/dashboard/TabsAndFilters.jsx'
 import OpportunitiesTable from '../components/dashboard/OpportunitiesTable.jsx'
@@ -27,6 +27,7 @@ export default function EvFinderPage() {
   const [filterValues, setFilterValues] = useState({})
   const [expandedId, setExpandedId] = useState(null)
   const [selectedIds, setSelectedIds] = useState([])
+  const refreshRequested = useRef(false)
 
   const filterConfig = useAsync(getFilterConfig, [])
 
@@ -37,7 +38,13 @@ export default function EvFinderPage() {
     [category, search, filterValues]
   )
 
-  const feed = useAsync(() => getOpportunities(query), [query])
+  const loadFeed = useCallback(() => {
+    const refresh = refreshRequested.current
+    refreshRequested.current = false
+    return getOpportunities({ ...query, refresh: refresh ? 'true' : undefined })
+  }, [query])
+
+  const feed = useAsync(loadFeed, [loadFeed])
 
   const detail = useAsync(
     () => (expandedId ? getOpportunityDetail(expandedId) : Promise.resolve(null)),
@@ -60,6 +67,12 @@ export default function EvFinderPage() {
     setFilterValues((current) => ({ ...current, [id]: value }))
   }, [])
 
+  const handleRefresh = useCallback(() => {
+    refreshRequested.current = true
+    setExpandedId(null)
+    feed.refetch()
+  }, [feed.refetch])
+
   const live = feed.data?.live
   const rows = feed.data?.results ?? []
   const updatedLabel = formatUpdated(live?.updatedAt)
@@ -76,19 +89,31 @@ export default function EvFinderPage() {
           </p>
         </div>
 
-        {/* Live state renders only when the backend reports one. */}
-        {feed.status === 'loading' || feed.status === 'idle' ? (
-          <Skeleton className="h-3 w-40" />
-        ) : (
-          live && (
-            <StatusIndicator
-              status={{
-                label: [live.isLive ? 'Live' : null, updatedLabel].filter(Boolean).join(' · '),
-                isPositive: live.isLive === true,
-              }}
-            />
-          )
-        )}
+        <div className="flex items-center gap-3">
+          {/* Live state renders only when the backend reports one. */}
+          {feed.status === 'loading' || feed.status === 'idle' ? (
+            <Skeleton className="h-3 w-40" />
+          ) : (
+            live && (
+              <StatusIndicator
+                status={{
+                  label: [live.isLive ? 'Live' : 'Partial', updatedLabel]
+                    .filter(Boolean)
+                    .join(' · '),
+                  isPositive: live.isLive === true,
+                }}
+              />
+            )
+          )}
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={feed.status === 'loading'}
+            className="rounded-full border border-vantage-border px-4 py-1.5 text-xs font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:cursor-wait disabled:opacity-50"
+          >
+            {feed.status === 'loading' ? 'Refreshing…' : 'Refresh odds'}
+          </button>
+        </div>
       </header>
 
       <TabsAndFilters
@@ -103,7 +128,8 @@ export default function EvFinderPage() {
       <OpportunitiesTable
         status={feed.status}
         rows={rows}
-        onRetry={feed.refetch}
+        error={feed.error}
+        onRetry={handleRefresh}
         expandedId={expandedId}
         onToggle={handleToggle}
         detail={detail.data}
