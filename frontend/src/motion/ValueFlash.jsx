@@ -35,7 +35,7 @@ export default function ValueFlash({ value, isPositive, className = '', children
         : ''
 
   return (
-    <span className={`rounded px-1 ${flashClass} ${className}`}>
+    <span className={`rounded px-1.5 ${flashClass} ${className}`}>
       <span key={visibleKey} className="animate-detail-in inline-block">
         {children}
       </span>

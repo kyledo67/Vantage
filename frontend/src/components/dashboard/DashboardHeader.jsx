@@ -5,6 +5,28 @@ import { Skeleton } from './atoms.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { DURATION, EASE } from '../../motion/tokens.js'
 
+// Thin line icons, matched in size/stroke to the existing Methodology book
+// icon so every primary nav item carries one.
+const navIcon = (path) =>
+  function NavGlyph() {
+    return (
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        {path}
+      </svg>
+    )
+  }
+
+const navIconStroke = { stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }
+
+const DiscoverIcon = navIcon(
+  <>
+    <circle cx="7" cy="7" r="4.4" {...navIconStroke} />
+    <path d="M10.8 10.8L14 14" {...navIconStroke} />
+  </>
+)
+const MyPicksIcon = navIcon(<path d="M4 2.5h8v11l-4-2.8-4 2.8v-11z" {...navIconStroke} />)
+const MarketsIcon = navIcon(<path d="M2.5 11.5l3.2-3.2 2.4 2 4.4-4.8" {...navIconStroke} />)
+
 function BookIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -26,9 +48,9 @@ function BookIcon() {
 
 // Only destinations that exist are linked; the rest render disabled.
 const primaryNav = [
-  { label: 'Discover', to: '/ev-finder' },
-  { label: 'My Picks', to: '/parlay' },
-  { label: 'Markets', to: '/markets' },
+  { label: 'Discover', to: '/ev-finder', Icon: DiscoverIcon },
+  { label: 'My Picks', to: '/parlay', Icon: MyPicksIcon },
+  { label: 'Markets', to: '/markets', Icon: MarketsIcon },
   { label: 'Methodology', to: '/methodology', Icon: BookIcon },
 ]
 
@@ -39,11 +61,11 @@ const primaryNav = [
  */
 function NavItem({ label, to, Icon }) {
   return (
-    <NavLink to={to} end className="relative pb-1 text-sm">
+    <NavLink to={to} end className="relative flex min-h-[56px] items-center pb-1.5 text-base">
       {({ isActive }) => (
         <>
           <span
-            className={`flex items-center gap-1.5 transition-colors duration-200 ${
+            className={`flex items-center gap-2 transition-colors duration-200 ${
               isActive ? 'text-vantage-text' : 'text-vantage-textDim hover:text-vantage-text'
             }`}
           >
@@ -72,7 +94,7 @@ function AccountArea({ account, status }) {
 
   if (status === 'loading' || status === 'idle') {
     return (
-      <div className="flex items-center gap-2" aria-live="polite" aria-busy="true">
+      <div className="flex items-center gap-2.5" aria-live="polite" aria-busy="true">
         <Skeleton className="h-8 w-8 rounded-full" />
         <Skeleton className="hidden h-3 w-24 sm:block" />
         <span className="sr-only">Loading account…</span>
@@ -85,7 +107,7 @@ function AccountArea({ account, status }) {
       <button
         type="button"
         onClick={logout}
-        className="text-sm text-vantage-textDim transition-colors hover:text-vantage-text"
+        className="flex min-h-[56px] items-center text-base text-vantage-textDim transition-colors hover:text-vantage-text"
       >
         Sign out
       </button>
@@ -93,23 +115,23 @@ function AccountArea({ account, status }) {
   }
 
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex items-center gap-4">
       {account.avatarUrl ? (
-        <img src={account.avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover" />
+        <img src={account.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover" />
       ) : account.initials ? (
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-vantage-raised text-xs font-semibold text-vantage-alert">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-vantage-raised text-sm font-semibold text-vantage-alert">
           {account.initials}
         </span>
       ) : null}
       {account.displayName && (
-        <span className="hidden max-w-[10rem] truncate text-sm text-vantage-text sm:block">
+        <span className="hidden max-w-[10rem] truncate text-base text-vantage-text sm:block">
           {account.displayName}
         </span>
       )}
       <button
         type="button"
         onClick={logout}
-        className="text-xs text-vantage-textDim transition-colors hover:text-vantage-text"
+        className="flex min-h-[56px] items-center text-sm text-vantage-textDim transition-colors hover:text-vantage-text"
       >
         Sign out
       </button>
@@ -134,12 +156,12 @@ export default function DashboardHeader({
 
   return (
     <header className="fixed inset-x-0 top-0 z-40 h-[72px] border-b border-vantage-border bg-vantage-nav">
-      <div className="mx-auto flex h-full items-center gap-6 px-4 sm:px-6">
+      <div className="mx-auto flex h-full items-center gap-8 px-5 sm:px-8">
         <button
           type="button"
           onClick={onOpenSidebar}
           aria-label="Open navigation"
-          className="-ml-1 rounded-md p-2 text-vantage-textDim hover:text-vantage-text lg:hidden"
+          className="-ml-1.5 rounded-md p-2.5 text-vantage-textDim hover:text-vantage-text lg:hidden"
         >
           <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
             <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -152,7 +174,7 @@ export default function DashboardHeader({
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-7 md:flex" aria-label="Primary">
+        <nav className="hidden items-center gap-9 md:flex" aria-label="Primary">
           {primaryNav.map((item) =>
             item.to ? (
               <NavItem key={item.label} {...item} />
@@ -161,7 +183,7 @@ export default function DashboardHeader({
                 key={item.label}
                 aria-disabled="true"
                 title="Not available yet"
-                className="cursor-not-allowed pb-1 text-sm text-vantage-textDim/45"
+                className="flex min-h-[56px] cursor-not-allowed items-center pb-1.5 text-base text-vantage-textDim/45"
               >
                 {item.label}
               </span>
@@ -169,16 +191,16 @@ export default function DashboardHeader({
           )}
         </nav>
 
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-5">
           <label className="relative hidden sm:block">
             <span className="sr-only">Search players, teams, or markets</span>
             <svg
-              width="14"
-              height="14"
+              width="15"
+              height="15"
               viewBox="0 0 20 20"
               fill="none"
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-vantage-textDim"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-vantage-textDim"
             >
               <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.4" />
               <path d="M13.5 13.5L17 17" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -187,8 +209,8 @@ export default function DashboardHeader({
               type="search"
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              placeholder="Search players, teams, or markets"
-              className="h-10 w-56 rounded-full border border-vantage-border bg-vantage-surface pl-9 pr-3 text-xs text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent lg:w-72"
+              placeholder="Search players, teams, markets…"
+              className="h-14 w-72 rounded-full border border-vantage-border bg-vantage-surface pl-12 pr-5 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent lg:w-[30rem]"
             />
           </label>
 

@@ -15,7 +15,7 @@ export default function ToastHost() {
   }, [toast, dismissToast])
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex justify-center lg:pl-[220px]">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-[60] flex justify-center lg:pl-[288px]">
       <AnimatePresence>
         {toast && (
           <motion.div
@@ -25,7 +25,7 @@ export default function ToastHost() {
             transition={{ duration: reduceMotion ? 0 : 0.2, ease: 'easeOut' }}
             role="status"
             aria-live="polite"
-            className="pointer-events-auto flex items-center gap-3 rounded-full border border-vantage-border bg-vantage-surfaceAlt px-4 py-2.5 text-xs text-vantage-text shadow-lg shadow-black/40"
+            className="pointer-events-auto flex min-h-[56px] items-center gap-5 rounded-full border border-vantage-border bg-vantage-surfaceAlt px-6 py-2.5 text-sm text-vantage-text shadow-lg shadow-black/40"
           >
             <span>{toast.message}</span>
             {toast.actionLabel && (
@@ -44,7 +44,7 @@ export default function ToastHost() {
               type="button"
               onClick={dismissToast}
               aria-label="Dismiss"
-              className="text-vantage-textDim transition-colors hover:text-vantage-text"
+              className="flex h-6 w-6 items-center justify-center text-vantage-textDim transition-colors hover:text-vantage-text"
             >
               ✕
             </button>

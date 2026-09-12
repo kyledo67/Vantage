@@ -37,35 +37,35 @@ export default function LandingPage() {
       <section className="relative pb-[72px] pt-[72px] lg:pb-[104px] lg:pt-[88px]">
         <HeroGlow />
 
-        <div className="grid grid-cols-1 items-center gap-y-4 lg:grid-cols-[45fr_55fr] lg:gap-x-8">
+        <div className="grid grid-cols-1 items-center gap-y-5 lg:grid-cols-[45fr_55fr] lg:gap-x-10">
           {/* Left — copy */}
           <div className="relative z-10">
             <motion.h1
               {...rise(0)}
-              className="text-[3.25rem] font-semibold leading-[1.05] tracking-[-0.02em] text-vantage-text sm:text-7xl xl:text-[6.25rem]"
+              className="text-5xl font-semibold leading-[1.05] tracking-[-0.02em] text-vantage-text sm:text-6xl lg:text-8xl"
             >
               <span className="block">Your</span>
               <span className="block whitespace-nowrap">
                 <span className="text-gradient-lavender">V</span>antage Point
               </span>
-              <span className="-ml-1 mt-1 block font-display font-normal tracking-normal">
+              <span className="-ml-1.5 mt-1.5 block font-display font-normal tracking-normal">
                 on the Market
               </span>
             </motion.h1>
 
             <motion.p
               {...rise(0.1)}
-              className="mt-7 max-w-[30rem] text-base leading-relaxed text-vantage-textDim sm:text-lg"
+              className="mt-9 max-w-[30rem] text-base leading-relaxed text-vantage-textDim sm:text-lg"
             >
               See what the broader market thinks a Kalshi or Polymarket sports contract is
               worth — before you take a position.
             </motion.p>
 
-            <motion.div {...rise(0.18)} className="mt-9 flex flex-wrap items-center gap-3">
+            <motion.div {...rise(0.18)} className="mt-12 flex flex-wrap items-center gap-4">
               {/* Coverage badge — mirrors the reference's twin-pill rhythm, but states a
                   fact about our data rather than linking to app stores we don't have. */}
-              <div className="flex items-center gap-3 rounded-full border border-vantage-border bg-vantage-surface px-5 py-3">
-                <span className="text-xs uppercase tracking-wide text-vantage-textDim">Live on</span>
+              <div className="flex items-center gap-4 rounded-full border border-vantage-border bg-vantage-surface px-6 py-4">
+                <span className="text-sm uppercase tracking-wide text-vantage-textDim">Live on</span>
                 <span className="text-sm font-medium text-vantage-text">Kalshi</span>
                 <span className="h-3 w-px bg-vantage-borderLight" />
                 <span className="text-sm font-medium text-vantage-text">Polymarket</span>
@@ -74,17 +74,17 @@ export default function LandingPage() {
               <motion.div whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}>
                 <Link
                   to="/ev-finder"
-                  className="inline-block rounded-full bg-vantage-accent px-7 py-3 text-sm font-semibold text-vantage-ctaText shadow-[0_10px_40px_-12px_rgba(206,99,233,0.65)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
+                  className="flex min-h-[62px] items-center rounded-full bg-vantage-accent px-9 text-base font-semibold text-vantage-ctaText shadow-[0_10px_40px_-12px_rgba(206,99,233,0.65)] transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
                 >
                   Explore the EV Finder
                 </Link>
               </motion.div>
             </motion.div>
 
-            <motion.div {...rise(0.24)} className="mt-5">
+            <motion.div {...rise(0.24)} className="mt-6">
               <Link
                 to="/methodology"
-                className="text-sm font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+                className="flex min-h-[56px] items-center text-base font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
               >
                 How it works →
               </Link>
@@ -100,8 +100,8 @@ export default function LandingPage() {
           >
             <LaptopScene />
 
-            <div className="mt-2 flex items-end justify-between gap-6">
-              <p className="pb-1 text-xs text-vantage-textDim">Drag the laptop to rotate it.</p>
+            <div className="mt-2.5 flex items-end justify-between gap-8">
+              <p className="pb-1.5 text-xs text-vantage-textDim">Drag the laptop to rotate it.</p>
               <HeroRotator />
             </div>
           </motion.div>
@@ -109,11 +109,11 @@ export default function LandingPage() {
       </section>
 
       {/* ── Trust strip ────────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-1 gap-6 border-t border-vantage-border py-10 sm:grid-cols-3">
+      <section className="grid grid-cols-1 gap-8 border-t border-vantage-border py-12 sm:grid-cols-3">
         {trustPoints.map((point) => (
-          <div key={point.title} className="flex items-start gap-3">
-            <span className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full bg-vantage-accent" />
-            <p className="text-sm text-vantage-textDim">
+          <div key={point.title} className="flex items-start gap-4">
+            <span className="mt-2.5 h-2 w-2 flex-shrink-0 rounded-full bg-vantage-accent" />
+            <p className="text-base leading-relaxed text-vantage-textDim">
               <span className="block font-medium text-vantage-text">{point.title}</span>
               {point.body}
             </p>
@@ -122,12 +122,12 @@ export default function LandingPage() {
       </section>
 
       {/* ── Positive EV feature — the one thing we actually have right now ──── */}
-      <section className="flex flex-col gap-6 py-16">
+      <section className="flex flex-col gap-8 py-20">
         <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-2xl font-semibold text-vantage-text sm:text-3xl">
             Identify <span className="text-vantage-positive">+EV</span> opportunities
           </h2>
-          <p className="mt-3 text-sm text-vantage-textDim sm:text-base">
+          <p className="mt-4 text-base leading-relaxed text-vantage-textDim">
             The EV Finder scans Kalshi and Polymarket sports contracts against a no-vig
             consensus of major sportsbooks and surfaces the ones that may be priced below their
             estimated market value — with the executable price, confidence, and sources shown
@@ -135,17 +135,17 @@ export default function LandingPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <OpportunityCard opportunity={heroCard} />
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-vantage-positive/30 bg-vantage-positive/5 p-6 text-center">
-            <p className="text-sm font-medium text-vantage-text">More on the way</p>
-            <p className="max-w-xs text-xs text-vantage-textDim">
+          <div className="flex flex-col items-center justify-center gap-2.5 rounded-lg border border-dashed border-vantage-positive/30 bg-vantage-positive/5 p-8 text-center">
+            <p className="text-base font-medium text-vantage-text">More on the way</p>
+            <p className="max-w-xs text-sm leading-relaxed text-vantage-textDim">
               Vantage is a hackathon MVP — the EV Finder is live today; parlay analysis,
               watchlists, and more sports are coming next.
             </p>
             <Link
               to="/ev-finder"
-              className="mt-1 text-xs font-medium text-vantage-positive hover:underline"
+              className="mt-1.5 flex min-h-[56px] items-center text-sm font-medium text-vantage-positive hover:underline"
             >
               See all opportunities →
             </Link>

@@ -22,20 +22,20 @@ export default function OpportunityCard({ opportunity }) {
   return (
     <Link
       to={`/ev-finder/${id}`}
-      className="block rounded-lg border border-vantage-border bg-vantage-surface p-4 transition-colors hover:border-vantage-accent/50"
+      className="block rounded-lg border border-vantage-border bg-vantage-surface p-6 transition-colors hover:border-vantage-accent/50"
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start justify-between gap-5">
         <div>
-          <div className="mb-1 flex items-center gap-2 text-xs uppercase tracking-wide text-vantage-textDim">
-            <span className="rounded bg-vantage-border px-1.5 py-0.5">{platform}</span>
+          <div className="mb-2 flex items-center gap-2.5 text-sm uppercase tracking-wide text-vantage-textDim">
+            <span className="rounded bg-vantage-border px-2 py-0.5">{platform}</span>
             <span>{event}</span>
           </div>
-          <h3 className="text-sm font-semibold text-vantage-text sm:text-base">{title}</h3>
+          <h3 className="text-base font-semibold text-vantage-text sm:text-lg">{title}</h3>
         </div>
         <PriceAdvantageTag priceAdvantageDecimal={priceAdvantageDecimal} estimatedRoi={estimatedRoi} />
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-vantage-textDim">
+      <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2.5 text-sm text-vantage-textDim">
         <span>
           Market price:{' '}
           <span className="font-medium text-vantage-text">{formatCents(executablePriceDecimal)}</span>
@@ -47,7 +47,7 @@ export default function OpportunityCard({ opportunity }) {
         <span>Based on: {contributingBooks.join(', ')}</span>
       </div>
 
-      <div className="mt-3 flex items-center justify-between">
+      <div className="mt-5 flex items-center justify-between">
         <ConfidenceBadge level={confidence} />
         <FreshnessIndicator updatedAt={quoteUpdatedAt} />
       </div>

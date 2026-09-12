@@ -7,7 +7,10 @@
     color-scheme: dark;
   }
   body {
-    @apply bg-vantage-bg text-vantage-text antialiased;
+    /* text-base now resolves to 16px/1.6 via the tailwind.config.js typography
+       scale — this is the floor every page inherits unless a component opts
+       into a larger token. */
+    @apply bg-vantage-bg text-vantage-text text-base antialiased;
   }
 }
 

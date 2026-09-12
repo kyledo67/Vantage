@@ -2,11 +2,11 @@ import { NavLink } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { SPRING_PILL } from '../../motion/tokens.js'
 
-// Thin line icons, 18px, stroke-based.
+// Thin line icons, 23px, stroke-based (scaled +30% from the original 18px).
 const icon = (path) =>
   function Icon() {
     return (
-      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <svg width="23" height="23" viewBox="0 0 20 20" fill="none" aria-hidden="true">
         {path}
       </svg>
     )
@@ -71,7 +71,7 @@ function NavItem({ label, to, Icon, onNavigate }) {
     <NavLink
       to={to}
       onClick={onNavigate}
-      className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm"
+      className="relative flex min-h-[64px] items-center gap-4 rounded-lg px-6 py-5 text-base"
     >
       {({ isActive }) => (
         <>
@@ -83,13 +83,18 @@ function NavItem({ label, to, Icon, onNavigate }) {
             />
           )}
           <span
-            className={`flex items-center gap-3 transition-colors duration-200 ${
+            className={`flex items-center gap-4 transition-colors duration-200 ${
               isActive
                 ? 'font-medium text-vantage-alert'
                 : 'text-vantage-textDim hover:text-vantage-text'
             }`}
           >
-            <Icon />
+            {/* Fixed-size icon slot — keeps every label's start position
+                identical regardless of how each icon's own artwork is
+                positioned within its viewBox. */}
+            <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center">
+              <Icon />
+            </span>
             <span>{label}</span>
           </span>
         </>
@@ -100,8 +105,8 @@ function NavItem({ label, to, Icon, onNavigate }) {
 
 export default function DashboardSidebar({ onNavigate }) {
   return (
-    <div className="flex h-full flex-col justify-between bg-vantage-nav p-3">
-      <nav className="flex flex-col gap-1" aria-label="Dashboard">
+    <div className="flex h-full flex-col justify-between gap-4 overflow-y-auto bg-vantage-nav p-6">
+      <nav className="flex flex-col gap-2" aria-label="Dashboard">
         {/* No `end`: /markets/:id should keep "Markets" highlighted. */}
         {navItems.map((item) => (
           <NavItem key={item.label} {...item} onNavigate={onNavigate} />
@@ -109,9 +114,9 @@ export default function DashboardSidebar({ onNavigate }) {
       </nav>
 
       {/* Product information only — never market data. */}
-      <div className="rounded-lg border border-vantage-border bg-vantage-surface p-3">
+      <div className="rounded-lg border border-vantage-border bg-vantage-surface p-5">
         <p className="text-xs font-medium text-vantage-alert">Vantage signal</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-vantage-textDim">
+        <p className="mt-2 text-xs leading-relaxed text-vantage-textDim">
           Every contract is benchmarked against current sharp-book prices. Estimates only —
           Vantage does not place trades.
         </p>

@@ -29,7 +29,7 @@ export default function MethodologyTabs({ tabs, activeId, onChange }) {
     <div
       role="tablist"
       aria-label="Methodology sections"
-      className="no-scrollbar sticky top-[72px] z-20 flex gap-6 overflow-x-auto border-b border-vantage-border bg-vantage-bg/95 backdrop-blur"
+      className="no-scrollbar sticky top-[72px] z-20 flex gap-8 overflow-x-auto border-b border-vantage-border bg-vantage-bg/95 backdrop-blur"
     >
       {tabs.map((tab, index) => {
         const isActive = tab.id === activeId
@@ -47,7 +47,7 @@ export default function MethodologyTabs({ tabs, activeId, onChange }) {
             tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(tab.id)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className="relative flex-shrink-0 whitespace-nowrap pb-3 pt-4 text-sm focus-visible:outline-none"
+            className="relative flex-shrink-0 whitespace-nowrap pb-4 pt-5 text-sm focus-visible:outline-none"
           >
             <span
               className={`transition-colors duration-200 ${

@@ -271,40 +271,40 @@ function Laptop({ reduceMotion }) {
               zIndexRange={[30, 20]}
             >
               <div
-                className="rounded-xl border border-vantage-border bg-vantage-surfaceAlt p-3.5"
+                className="rounded-xl border border-vantage-border bg-vantage-surfaceAlt p-5"
                 style={{ width: 250, boxShadow: '0 30px 60px -15px rgba(0,0,0,0.85)' }}
                 aria-hidden="true"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-[8px] uppercase tracking-wide text-vantage-textDim">
+                  <span className="text-sm uppercase tracking-wide text-vantage-textDim">
                     Kalshi · NYY @ BOS
                   </span>
-                  <span className="flex items-center gap-1 text-[8px] font-semibold text-vantage-positive">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-vantage-positive">
                     <span className="h-1 w-1 rounded-full bg-vantage-positive" />
                     LIVE
                   </span>
                 </div>
 
-                <div className="mt-1.5 text-[12px] font-semibold text-vantage-text">
+                <div className="mt-2 text-xs font-semibold text-vantage-text">
                   Aaron Judge — Over 1.5 TB
                 </div>
 
-                <div className="mt-3 flex items-end justify-between">
+                <div className="mt-4 flex items-end justify-between">
                   <div>
-                    <div className="text-[8px] text-vantage-textDim">Market price</div>
-                    <div className="text-[15px] font-bold leading-tight text-vantage-text">42¢</div>
+                    <div className="text-xs text-vantage-textDim">Market price</div>
+                    <div className="text-base font-bold leading-tight text-vantage-text">42¢</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-[8px] text-vantage-textDim">Price advantage</div>
-                    <div className="text-[15px] font-bold leading-tight text-vantage-positive">+5¢</div>
+                    <div className="text-xs text-vantage-textDim">Price advantage</div>
+                    <div className="text-base font-bold leading-tight text-vantage-positive">+5¢</div>
                   </div>
                 </div>
 
-                <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-vantage-raised">
+                <div className="mt-3 h-1 overflow-hidden rounded-full bg-vantage-raised">
                   <div className="h-full w-[68%] rounded-full bg-vantage-accent" />
                 </div>
 
-                <div className="mt-2.5 inline-block rounded-full px-2 py-0.5 text-[8px] text-vantage-positive">
+                <div className="mt-3 inline-block rounded-full px-2.5 py-0.5 text-xs text-vantage-positive">
                   Confidence: High
                 </div>
               </div>

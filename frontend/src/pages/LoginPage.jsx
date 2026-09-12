@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 function Wordmark({ className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-2 ${className}`}>
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
       <span className="flex h-6 w-6 items-center justify-center rounded-md bg-vantage-hero text-xs font-bold text-vantage-ctaText">
         V
       </span>
@@ -43,24 +43,24 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-screen grid-cols-1 bg-vantage-bg lg:grid-cols-2">
       {/* Left — brand panel */}
-      <div className="relative hidden flex-col justify-between overflow-hidden p-10 lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden p-12 lg:flex">
         <GlowField variant="wide" />
 
         <Link to="/" className="relative z-10">
           <Wordmark />
         </Link>
 
-        <div className="relative z-10 flex flex-col gap-8">
+        <div className="relative z-10 flex flex-col gap-10">
           <div>
-            <span className="inline-block rounded-full border border-vantage-accent/30 bg-vantage-accent/10 px-3 py-1 text-xs font-medium text-vantage-accent">
+            <span className="inline-block rounded-full border border-vantage-accent/30 bg-vantage-accent/10 px-4 py-1.5 text-xs font-medium text-vantage-accent">
               Sports markets, decoded
             </span>
-            <h1 className="mt-4 text-4xl font-semibold leading-tight tracking-tight text-vantage-text xl:text-5xl">
+            <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight text-vantage-text xl:text-5xl">
               A clearer read
               <br />
               <span className="text-gradient">on every edge.</span>
             </h1>
-            <p className="mt-3 text-sm text-vantage-textDim">
+            <p className="mt-4 text-base leading-relaxed text-vantage-textDim">
               Your markets, picks, and signals — all in one place.
             </p>
           </div>
@@ -75,7 +75,7 @@ export default function LoginPage() {
       </div>
 
       {/* Right — auth form */}
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-vantage-nav px-6 py-12">
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-vantage-nav px-8 py-16">
         <div
           className="pointer-events-none absolute inset-0 -z-10"
           style={{
@@ -88,15 +88,15 @@ export default function LoginPage() {
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-sm rounded-2xl border border-vantage-border bg-vantage-surface/60 p-8 shadow-[0_20px_60px_-20px_rgba(121,75,212,0.35)] backdrop-blur"
+          className="w-full max-w-md rounded-2xl border border-vantage-border bg-vantage-surface/60 p-12 shadow-[0_20px_60px_-20px_rgba(121,75,212,0.35)] backdrop-blur"
         >
-          <Wordmark className="mb-8 lg:hidden" />
+          <Wordmark className="mb-10 lg:hidden" />
 
           <h2 className="text-2xl font-semibold text-vantage-text sm:text-3xl">Welcome back.</h2>
-          <p className="mt-1 text-sm text-vantage-textDim">Sign in to find your next edge.</p>
+          <p className="mt-2 text-base text-vantage-textDim">Sign in to find your next edge.</p>
 
           {location.state?.from && (
-            <p className="mt-4 rounded-lg border border-vantage-accent/30 bg-vantage-accent/10 px-3.5 py-2.5 text-xs text-vantage-text">
+            <p className="mt-5 rounded-lg border border-vantage-accent/30 bg-vantage-accent/10 px-5 py-4 text-sm text-vantage-text">
               Sign in to open{' '}
               <span className="font-medium">
                 {location.state.from.pathname.startsWith('/portfolio')
@@ -107,25 +107,25 @@ export default function LoginPage() {
             </p>
           )}
 
-          <form onSubmit={handleSubmit} className="mt-8 flex flex-col gap-5">
+          <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-6">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-medium text-vantage-text">Email address</span>
+              <span className="mb-2 block text-xs font-medium text-vantage-text">Email address</span>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-vantage-border bg-vantage-surface px-3.5 py-2.5 text-sm text-vantage-text placeholder:text-vantage-textDim/70 focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
+                className="h-16 w-full rounded-lg border border-vantage-border bg-vantage-surface px-5 text-base text-vantage-text placeholder:text-vantage-textDim/70 focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
               />
             </label>
 
             <label className="block">
-              <div className="mb-1.5 flex items-center justify-between">
+              <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-medium text-vantage-text">Password</span>
                 <button
                   type="button"
-                  className="text-xs font-medium text-vantage-accent hover:underline"
+                  className="flex min-h-[56px] items-center text-sm font-medium text-vantage-accent hover:underline"
                   onClick={() => alert('Password reset isn’t wired up in this demo yet.')}
                 >
                   Forgot password?
@@ -138,12 +138,12 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••••••"
-                  className="w-full rounded-lg border border-vantage-border bg-vantage-surface px-3.5 py-2.5 pr-14 text-sm text-vantage-text placeholder:text-vantage-textDim/70 focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
+                  className="h-16 w-full rounded-lg border border-vantage-border bg-vantage-surface px-5 pr-20 text-base text-vantage-text placeholder:text-vantage-textDim/70 focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-vantage-accent hover:underline"
+                  className="absolute right-3 top-1/2 flex min-h-[46px] -translate-y-1/2 items-center text-sm font-medium text-vantage-accent hover:underline"
                 >
                   {showPassword ? 'Hide' : 'Show'}
                 </button>
@@ -153,29 +153,29 @@ export default function LoginPage() {
             <motion.button
               type="submit"
               whileTap={{ scale: 0.98 }}
-              className="mt-1 w-full rounded-lg bg-vantage-accent py-3 text-sm font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
+              className="mt-1.5 flex min-h-[62px] w-full items-center justify-center rounded-lg bg-vantage-accent text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
             >
               Sign in
             </motion.button>
 
-            <p className="rounded-lg border border-vantage-border bg-vantage-surface px-3.5 py-2.5 text-[11px] leading-relaxed text-vantage-textDim">
+            <p className="rounded-lg border border-vantage-border bg-vantage-surface px-5 py-4 text-sm leading-relaxed text-vantage-textDim">
               <span className="font-medium text-vantage-text">Demo build:</span> no auth backend
               yet, so any email and password will sign you in.
             </p>
 
-            <div className="flex items-center gap-3 py-1">
+            <div className="flex items-center gap-4 py-1.5">
               <div className="h-px flex-1 bg-vantage-border" />
-              <span className="text-[11px] uppercase tracking-wide text-vantage-textDim">
+              <span className="text-sm uppercase tracking-wide text-vantage-textDim">
                 or continue with
               </span>
               <div className="h-px flex-1 bg-vantage-border" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-4">
               <button
                 type="button"
                 onClick={() => signIn({ provider: 'google' })}
-                className="flex items-center justify-center gap-2 rounded-lg border border-vantage-border bg-vantage-surface py-2.5 text-sm font-medium text-vantage-text hover:border-vantage-borderLight"
+                className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-lg border border-vantage-border bg-vantage-surface text-base font-medium text-vantage-text hover:border-vantage-borderLight"
               >
                 <GoogleMark />
                 Google
@@ -183,7 +183,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => signIn({ provider: 'apple' })}
-                className="flex items-center justify-center gap-2 rounded-lg border border-vantage-border bg-vantage-surface py-2.5 text-sm font-medium text-vantage-text hover:border-vantage-borderLight"
+                className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-lg border border-vantage-border bg-vantage-surface text-base font-medium text-vantage-text hover:border-vantage-borderLight"
               >
                 <AppleMark />
                 Apple
@@ -191,7 +191,7 @@ export default function LoginPage() {
             </div>
           </form>
 
-          <p className="mt-8 text-center text-sm text-vantage-textDim">
+          <p className="mt-10 text-center text-base text-vantage-textDim">
             New to Vantage?{' '}
             <button
               type="button"
@@ -202,7 +202,7 @@ export default function LoginPage() {
             </button>
           </p>
 
-          <p className="mt-10 text-center text-[11px] leading-relaxed text-vantage-textDim">
+          <p className="mt-12 text-center text-xs leading-relaxed text-vantage-textDim">
             By continuing, you agree to our Terms and Privacy Policy. Vantage is a market-analysis
             tool — it does not place trades on your behalf.
           </p>

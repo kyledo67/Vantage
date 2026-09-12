@@ -18,15 +18,15 @@ export default function TabsAndFilters({
 }) {
   if (status === 'loading' || status === 'idle') {
     return (
-      <div className="flex flex-col gap-3" aria-busy="true">
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-4" aria-busy="true">
+        <div className="flex gap-2.5">
           {[64, 56, 52, 58, 50].map((w, i) => (
-            <Skeleton key={i} className="h-9 rounded-lg" style={{ width: w }} />
+            <Skeleton key={i} className="h-14 rounded-lg" style={{ width: w }} />
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           {[128, 120, 112, 116].map((w, i) => (
-            <Skeleton key={i} className="h-10 rounded-lg" style={{ width: w }} />
+            <Skeleton key={i} className="h-14 rounded-lg" style={{ width: w }} />
           ))}
         </div>
       </div>
@@ -40,12 +40,12 @@ export default function TabsAndFilters({
   return (
     // min-w-0 so the horizontally scrolling rows below can actually shrink —
     // without it, flex children default to min-width:auto and widen the page.
-    <div className="flex min-w-0 flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-4">
       {categories.length > 0 && (
         <div
           role="tablist"
           aria-label="Market categories"
-          className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5"
+          className="no-scrollbar -mx-1.5 flex gap-2.5 overflow-x-auto px-1.5 pb-0.5"
         >
           {categories.map((category) => {
             const active = category.id === activeCategory
@@ -57,7 +57,7 @@ export default function TabsAndFilters({
                 aria-selected={active}
                 whileTap={PRESS_BUTTON}
                 onClick={() => onCategoryChange(category.id)}
-                className={`relative flex-shrink-0 rounded-lg border px-3.5 py-2 text-xs transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent ${
+                className={`relative flex min-h-[56px] flex-shrink-0 items-center rounded-lg border px-5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent ${
                   active
                     ? 'border-vantage-accent/50 font-medium text-vantage-alert'
                     : 'border-vantage-border bg-vantage-surface text-vantage-textDim hover:text-vantage-text'
@@ -79,7 +79,7 @@ export default function TabsAndFilters({
       )}
 
       {filters.length > 0 && (
-        <div className="no-scrollbar -mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5">
+        <div className="no-scrollbar -mx-1.5 flex gap-2.5 overflow-x-auto px-1.5 pb-0.5">
           {filters.map((filter) => (
             <FilterSelect
               key={filter.id}

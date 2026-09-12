@@ -27,7 +27,7 @@ export default function MarketsPage() {
   const isEmpty = groups.every((group) => (group.items?.length ?? 0) === 0)
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
       <SectionHeader
         title="Markets"
         description="Browse sports, leagues, events, and prediction-market contracts."
@@ -39,7 +39,7 @@ export default function MarketsPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Search markets"
-              className="h-10 w-60 rounded-full border border-vantage-border bg-vantage-surface px-4 text-xs text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
+              className="h-14 w-60 rounded-full border border-vantage-border bg-vantage-surface px-6 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
             />
           </label>
         }
@@ -66,7 +66,7 @@ export default function MarketsPage() {
               (group.items?.length ?? 0) === 0 ? null : (
                 <section key={group.id}>
                   {group.label && (
-                    <h2 className="border-b border-vantage-border bg-vantage-surfaceAlt/50 px-4 py-2 text-[10px] uppercase tracking-wide text-vantage-alert">
+                    <h2 className="border-b border-vantage-border bg-vantage-surfaceAlt/50 px-5 py-2.5 text-sm font-medium uppercase tracking-wide text-vantage-alert">
                       {group.label}
                     </h2>
                   )}
@@ -75,14 +75,14 @@ export default function MarketsPage() {
                       <li key={item.id} className="border-b border-vantage-border/60 last:border-b-0">
                         <Link
                           to={`/markets/${item.id}`}
-                          className="flex items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-vantage-surfaceAlt/60"
+                          className="flex min-h-[100px] items-center justify-between gap-5 px-5 py-5 transition-colors hover:bg-vantage-surfaceAlt/60"
                         >
                           <div className="min-w-0">
                             {item.name && (
-                              <p className="truncate text-sm text-vantage-text">{item.name}</p>
+                              <p className="truncate text-base text-vantage-text">{item.name}</p>
                             )}
                             {item.subtitle && (
-                              <p className="truncate text-xs text-vantage-textDim">
+                              <p className="mt-0.5 truncate text-sm text-vantage-textDim">
                                 {item.subtitle}
                               </p>
                             )}

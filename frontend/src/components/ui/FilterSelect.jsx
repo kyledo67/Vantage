@@ -104,7 +104,7 @@ export default function FilterSelect({ label, value, options = [], onChange }) {
         aria-label={label}
         onClick={() => setOpen((v) => !v)}
         onKeyDown={handleKeyDown}
-        className={`flex h-10 min-w-[9rem] items-center justify-between gap-3 rounded-lg border px-3 text-xs transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent ${
+        className={`flex h-14 min-w-[9rem] items-center justify-between gap-4 rounded-lg border px-5 text-sm transition-colors duration-150 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent ${
           isActive || open
             ? 'border-vantage-accent/50 bg-vantage-raised text-vantage-alert'
             : 'border-vantage-border bg-vantage-surface text-vantage-textDim hover:text-vantage-text'
@@ -144,7 +144,7 @@ export default function FilterSelect({ label, value, options = [], onChange }) {
                 minWidth: rect.width,
               }}
               onKeyDown={handleKeyDown}
-              className="z-50 max-h-60 overflow-auto rounded-lg border border-vantage-border bg-vantage-surface p-1 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.85)]"
+              className="z-50 max-h-60 overflow-auto rounded-lg border border-vantage-border bg-vantage-surface p-1.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.85)]"
             >
             {items.map((option, index) => {
               const isSelected = index === selectedIndex
@@ -156,7 +156,7 @@ export default function FilterSelect({ label, value, options = [], onChange }) {
                   aria-selected={isSelected}
                   onMouseEnter={() => setActiveIndex(index)}
                   onClick={() => commit(index)}
-                  className={`cursor-pointer rounded-md px-2.5 py-1.5 text-xs transition-colors duration-150 ${
+                  className={`flex min-h-[52px] cursor-pointer items-center rounded-md px-4 text-sm transition-colors duration-150 ${
                     index === activeIndex ? 'bg-vantage-raised' : ''
                   } ${isSelected ? 'text-vantage-alert' : 'text-vantage-textDim'}`}
                 >

@@ -27,22 +27,22 @@ const TABS = [
 
 function AlertRow({ alert, onTogglePause, onDelete, paused, busy }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-4 border-b border-vantage-border/60 px-4 py-3.5 last:border-b-0">
+    <li className="flex flex-wrap items-center justify-between gap-5 border-b border-vantage-border/60 min-h-[100px] px-5 py-5 last:border-b-0">
       <div className="min-w-0 flex-1">
         {alert.title && (
-          <p className="truncate text-sm font-medium text-vantage-text">{alert.title}</p>
+          <p className="truncate text-base font-medium text-vantage-text">{alert.title}</p>
         )}
         {alert.subtitle && (
-          <p className="truncate text-xs text-vantage-textDim">{alert.subtitle}</p>
+          <p className="mt-0.5 truncate text-sm text-vantage-textDim">{alert.subtitle}</p>
         )}
       </div>
-      <div className="flex items-center gap-4 text-xs">
+      <div className="flex items-center gap-5 text-sm">
         <StatusIndicator status={alert.status} />
         <button
           type="button"
           onClick={() => onTogglePause(alert.id, !paused)}
           disabled={busy}
-          className="rounded border border-vantage-border px-2 py-1 text-vantage-textDim transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:opacity-50"
+          className="flex min-h-[52px] items-center rounded border border-vantage-border px-4 text-sm text-vantage-textDim transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:opacity-50"
         >
           {paused ? 'Resume' : 'Pause'}
         </button>
@@ -50,7 +50,7 @@ function AlertRow({ alert, onTogglePause, onDelete, paused, busy }) {
           type="button"
           onClick={() => onDelete(alert.id)}
           disabled={busy}
-          className="rounded border border-vantage-border px-2 py-1 text-vantage-textDim transition-colors hover:border-vantage-danger hover:text-vantage-danger disabled:opacity-50"
+          className="flex min-h-[52px] items-center rounded border border-vantage-border px-4 text-sm text-vantage-textDim transition-colors hover:border-vantage-danger hover:text-vantage-danger disabled:opacity-50"
         >
           Delete
         </button>
@@ -85,14 +85,16 @@ function NewAlertForm({ config, onCreated, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3 border-b border-vantage-border p-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-vantage-alert">Condition</span>
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4 border-b border-vantage-border p-5">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium uppercase tracking-wide text-vantage-alert">
+            Condition
+          </span>
           <select
             value={ruleType}
             onChange={(e) => setRuleType(e.target.value)}
-            className="h-10 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-3 text-xs text-vantage-text focus:border-vantage-accent focus:outline-none"
+            className="h-14 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-5 text-base text-vantage-text focus:border-vantage-accent focus:outline-none"
           >
             {ruleTypes.map((rule) => (
               <option key={rule.id} value={rule.id}>
@@ -102,43 +104,45 @@ function NewAlertForm({ config, onCreated, onCancel }) {
           </select>
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-vantage-alert">
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium uppercase tracking-wide text-vantage-alert">
             {selected?.valueLabel || 'Threshold'}
           </span>
           <input
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
             placeholder={selected?.unit || ''}
-            className="h-10 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-3 text-xs text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none"
+            className="h-14 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-5 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none"
           />
         </label>
 
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-vantage-alert">Applies to</span>
+        <label className="flex flex-col gap-2">
+          <span className="text-sm font-medium uppercase tracking-wide text-vantage-alert">
+            Applies to
+          </span>
           <input
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             placeholder="Market, player, or event"
-            className="h-10 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-3 text-xs text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none"
+            className="h-14 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-5 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none"
           />
         </label>
       </div>
 
-      {error && <p className="text-xs text-vantage-danger">{error}</p>}
+      {error && <p className="text-sm text-vantage-danger">{error}</p>}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-4">
         <button
           type="submit"
           disabled={saving || !ruleType}
-          className="rounded-full bg-vantage-accent px-4 py-1.5 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 disabled:opacity-50"
+          className="flex min-h-[62px] items-center rounded-full bg-vantage-accent px-8 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 disabled:opacity-50"
         >
           {saving ? 'Creating…' : 'Create alert'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full border border-vantage-border px-4 py-1.5 text-xs text-vantage-textDim hover:text-vantage-text"
+          className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base text-vantage-textDim hover:text-vantage-text"
         >
           Cancel
         </button>
@@ -219,7 +223,7 @@ export default function AlertsPage() {
   const canCreate = config.status === 'success' && (config.data?.ruleTypes?.length ?? 0) > 0
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
       <SectionHeader
         title="Alerts"
         description="Get notified when a market crosses a threshold you care about."
@@ -230,16 +234,16 @@ export default function AlertsPage() {
             onClick={() => setCreating((v) => !v)}
             disabled={!canCreate}
             title={canCreate ? undefined : 'Alert options are unavailable right now'}
-            className="rounded-full bg-vantage-accent px-4 py-2 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-vantage-border disabled:text-vantage-textDim"
+            className="flex min-h-[62px] items-center rounded-full bg-vantage-accent px-8 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:bg-vantage-border disabled:text-vantage-textDim"
           >
             New alert
           </motion.button>
         }
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
-        <div className="flex min-w-0 flex-col gap-3">
-          <div role="tablist" aria-label="Alert state" className="flex gap-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div role="tablist" aria-label="Alert state" className="flex gap-2.5">
             {TABS.map((t) => (
               <motion.button
                 key={t.id}
@@ -248,7 +252,7 @@ export default function AlertsPage() {
                 aria-selected={tab === t.id}
                 whileTap={PRESS_BUTTON}
                 onClick={() => setTab(t.id)}
-                className={`rounded-lg border px-3.5 py-2 text-xs transition-colors ${
+                className={`flex min-h-[56px] items-center rounded-lg border px-5 text-sm transition-colors ${
                   tab === t.id
                     ? 'border-vantage-accent/50 bg-vantage-raised font-medium text-vantage-alert'
                     : 'border-vantage-border bg-vantage-surface text-vantage-textDim hover:text-vantage-text'
@@ -256,7 +260,7 @@ export default function AlertsPage() {
               >
                 {t.label}
                 {alerts.status === 'success' && lists[t.id].length > 0 && (
-                  <span className="ml-1.5 text-[10px] text-vantage-textDim">
+                  <span className="ml-2 text-xs text-vantage-textDim">
                     {lists[t.id].length}
                   </span>
                 )}
@@ -299,23 +303,20 @@ export default function AlertsPage() {
                   ? current.map((event) => (
                       <li
                         key={event.id}
-                        className="flex flex-wrap items-center justify-between gap-4 border-b border-vantage-border/60 px-4 py-3.5 last:border-b-0"
+                        className="flex flex-wrap items-center justify-between gap-5 border-b border-vantage-border/60 min-h-[100px] px-5 py-5 last:border-b-0"
                       >
                         <div className="min-w-0 flex-1">
                           {event.title && (
-                            <p className="truncate text-sm text-vantage-text">{event.title}</p>
+                            <p className="truncate text-base text-vantage-text">{event.title}</p>
                           )}
                           {event.description && (
-                            <p className="truncate text-xs text-vantage-textDim">
+                            <p className="mt-0.5 truncate text-sm text-vantage-textDim">
                               {event.description}
                             </p>
                           )}
                         </div>
                         {event.at && (
-                          <time
-                            dateTime={event.at}
-                            className="text-xs text-vantage-textDim"
-                          >
+                          <time dateTime={event.at} className="text-xs text-vantage-textDim">
                             {new Date(event.at).toLocaleString()}
                           </time>
                         )}
@@ -338,24 +339,24 @@ export default function AlertsPage() {
 
         {/* Delivery preferences render only when the backend lists channels. */}
         {alerts.status === 'success' && channels.length > 0 && (
-          <Panel className="p-4">
-            <h2 className="text-sm font-semibold text-vantage-text">Delivery</h2>
-            <ul className="mt-3 flex flex-col gap-3">
+          <Panel className="p-6">
+            <h2 className="text-lg font-semibold text-vantage-text">Delivery</h2>
+            <ul className="mt-5 flex flex-col gap-5">
               {channels.map((channel) => (
-                <li key={channel.id} className="flex items-start justify-between gap-3">
+                <li key={channel.id} className="flex min-h-[56px] items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <p className="text-xs font-medium text-vantage-text">{channel.label}</p>
+                    <p className="text-base font-medium text-vantage-text">{channel.label}</p>
                     {channel.description && (
-                      <p className="text-[11px] text-vantage-textDim">{channel.description}</p>
+                      <p className="mt-0.5 text-sm text-vantage-textDim">{channel.description}</p>
                     )}
                   </div>
-                  <label className="flex flex-shrink-0 items-center gap-2">
+                  <label className="flex flex-shrink-0 items-center gap-2.5">
                     <span className="sr-only">{channel.label}</span>
                     <input
                       type="checkbox"
                       checked={Boolean(channel.enabled)}
                       onChange={(e) => handleChannel(channel.id, e.target.checked)}
-                      className="h-4 w-4 accent-[#CE63E9]"
+                      className="h-5 w-5 accent-[#CE63E9]"
                     />
                   </label>
                 </li>

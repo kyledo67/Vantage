@@ -10,7 +10,7 @@ import { usePageVisiblePause } from '../motion/usePageVisible.js'
 import { DURATION, EASE } from '../motion/tokens.js'
 
 /**
- * Authenticated shell: fixed 72px header, fixed 220px sidebar below it on
+ * Authenticated shell: fixed 72px header, fixed 288px sidebar below it on
  * desktop, slide-out drawer on mobile. Search state lives here so the header
  * can drive the page's query via Outlet context.
  */
@@ -36,7 +36,7 @@ export default function DashboardLayout() {
       />
 
       {/* Desktop sidebar */}
-      <aside className="fixed bottom-0 left-0 top-[72px] hidden w-[220px] border-r border-vantage-border lg:block">
+      <aside className="fixed bottom-0 left-0 top-[72px] hidden w-[288px] border-r border-vantage-border lg:block">
         <DashboardSidebar />
       </aside>
 
@@ -57,7 +57,7 @@ export default function DashboardLayout() {
               animate={{ x: 0 }}
               exit={{ x: -240 }}
               transition={{ duration: DURATION.nav, ease: EASE.out }}
-              className="fixed bottom-0 left-0 top-[72px] z-50 w-[220px] border-r border-vantage-border lg:hidden"
+              className="fixed bottom-0 left-0 top-[72px] z-50 w-[288px] border-r border-vantage-border lg:hidden"
             >
               <DashboardSidebar onNavigate={() => setDrawerOpen(false)} />
             </motion.aside>
@@ -65,8 +65,8 @@ export default function DashboardLayout() {
         )}
       </AnimatePresence>
 
-      <main className="pt-[72px] lg:pl-[220px]">
-        <div className="p-4 sm:p-6">
+      <main className="pt-[72px] lg:pl-[288px]">
+        <div className="p-5 sm:p-8">
           {/* Nav and background stay mounted outside this — only the page
               content itself fades, so navigating never reads as leaving
               Vantage. Reduced-motion users get opacity only (or none), via

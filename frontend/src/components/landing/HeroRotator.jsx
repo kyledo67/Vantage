@@ -23,7 +23,7 @@ export default function HeroRotator() {
   const slide = slides[index]
 
   return (
-    <div className="flex shrink-0 flex-col items-end gap-4">
+    <div className="flex shrink-0 flex-col items-end gap-5">
       <div className="relative h-[4.5rem] w-max text-right sm:h-24">
         <AnimatePresence mode="wait">
           <motion.div
@@ -44,7 +44,7 @@ export default function HeroRotator() {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center gap-2" role="tablist" aria-label="Hero highlights">
+      <div className="flex items-center gap-2.5" role="tablist" aria-label="Hero highlights">
         {slides.map((s, i) => (
           <button
             key={s.headline}

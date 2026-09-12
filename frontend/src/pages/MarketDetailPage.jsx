@@ -26,13 +26,16 @@ export default function MarketDetailPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
-      <Link to="/markets" className="text-xs text-vantage-textDim hover:text-vantage-text">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
+      <Link
+        to="/markets"
+        className="inline-flex min-h-[56px] items-center text-sm text-vantage-textDim hover:text-vantage-text"
+      >
         ← Back to markets
       </Link>
 
       {(market.status === 'loading' || market.status === 'idle') && (
-        <div className="flex flex-col gap-4" aria-busy="true">
+        <div className="flex flex-col gap-5" aria-busy="true">
           <span className="sr-only" aria-live="polite">
             Loading market…
           </span>
@@ -54,43 +57,43 @@ export default function MarketDetailPage() {
 
       {market.status === 'success' && data && (
         <>
-          <header className="flex flex-wrap items-start justify-between gap-4">
+          <header className="flex flex-wrap items-start justify-between gap-5">
             <div>
               {data.title && (
-                <h1 className="text-2xl font-semibold tracking-tight text-vantage-text sm:text-3xl">
+                <h1 className="text-4xl font-semibold tracking-tight text-vantage-text sm:text-5xl">
                   {data.title}
                 </h1>
               )}
               {data.subtitle && (
-                <p className="mt-1 text-sm text-vantage-textDim">{data.subtitle}</p>
+                <p className="mt-2.5 text-base text-vantage-textDim">{data.subtitle}</p>
               )}
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-5">
               <StatusIndicator status={data.status} />
               <button
                 type="button"
                 onClick={handleMethodology}
-                className="text-xs font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+                className="min-h-[56px] text-sm font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
               >
                 How this is calculated →
               </button>
             </div>
           </header>
 
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[1.6fr_1fr]">
             {data.priceHistory?.points?.length > 1 && (
-              <Panel className="p-4">
+              <Panel className="p-5">
                 <PriceHistoryChart history={data.priceHistory} />
               </Panel>
             )}
 
             {(data.consensus?.label || data.liquidity?.label) && (
-              <Panel className="p-4">
-                <h2 className="text-sm font-semibold text-vantage-text">Market context</h2>
-                <dl className="mt-3 flex flex-col gap-3">
+              <Panel className="p-6">
+                <h2 className="text-lg font-semibold text-vantage-text">Market context</h2>
+                <dl className="mt-5 flex flex-col gap-5">
                   {data.consensus?.label && (
                     <div>
-                      <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">
+                      <dt className="text-sm uppercase tracking-wide text-vantage-alert">
                         Consensus
                       </dt>
                       <dd className="text-lg font-semibold text-vantage-text">
@@ -100,7 +103,7 @@ export default function MarketDetailPage() {
                   )}
                   {data.liquidity?.label && (
                     <div>
-                      <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">
+                      <dt className="text-sm uppercase tracking-wide text-vantage-alert">
                         Liquidity
                       </dt>
                       <dd className="text-lg font-semibold text-vantage-text">
@@ -114,24 +117,24 @@ export default function MarketDetailPage() {
           </div>
 
           {data.relatedOpportunities?.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="text-sm font-semibold text-vantage-text">Related opportunities</h2>
+            <section className="flex flex-col gap-4">
+              <h2 className="text-lg font-semibold text-vantage-text">Related opportunities</h2>
               <Panel>
                 <ul>
                   {data.relatedOpportunities.map((item) => (
                     <li
                       key={item.id}
-                      className="flex items-center justify-between gap-4 border-b border-vantage-border/60 px-4 py-3 last:border-b-0"
+                      className="flex min-h-[100px] items-center justify-between gap-5 border-b border-vantage-border/60 px-5 py-5 last:border-b-0"
                     >
                       <div className="min-w-0">
                         {item.title && (
-                          <p className="truncate text-sm text-vantage-text">{item.title}</p>
+                          <p className="truncate text-base text-vantage-text">{item.title}</p>
                         )}
                         {item.subtitle && (
-                          <p className="truncate text-xs text-vantage-textDim">{item.subtitle}</p>
+                          <p className="truncate text-sm text-vantage-textDim">{item.subtitle}</p>
                         )}
                       </div>
-                      <PositiveValue value={item.ev} className="text-xs" />
+                      <PositiveValue value={item.ev} className="text-sm" />
                     </li>
                   ))}
                 </ul>

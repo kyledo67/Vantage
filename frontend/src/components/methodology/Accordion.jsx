@@ -16,7 +16,7 @@ export default function Accordion({ open, onToggle, trigger, children, className
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={panelId}
-        className="flex w-full items-start justify-between gap-3 text-left"
+        className="flex w-full items-start justify-between gap-4 text-left"
       >
         {trigger}
       </button>

@@ -9,7 +9,7 @@ import {
 } from '../components/dashboard/states.jsx'
 
 const inputClass =
-  'h-10 rounded-lg border border-vantage-border bg-vantage-surface px-3 text-xs text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent'
+  'h-14 rounded-lg border border-vantage-border bg-vantage-surface px-5 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent'
 
 export default function HistoryPage() {
   const [input, setInput] = useState('')
@@ -29,15 +29,15 @@ export default function HistoryPage() {
   const filtered = search || from || to
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
       <SectionHeader
         title="History"
         description="A record of your activity and the market events behind it."
       />
 
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-vantage-textDim">Search</span>
+      <div className="flex flex-wrap items-end gap-4">
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm uppercase tracking-wide text-vantage-textDim">Search</span>
           <input
             type="search"
             value={input}
@@ -46,12 +46,12 @@ export default function HistoryPage() {
             className={`${inputClass} w-52`}
           />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-vantage-textDim">From</span>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm uppercase tracking-wide text-vantage-textDim">From</span>
           <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className={inputClass} />
         </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-[10px] uppercase tracking-wide text-vantage-textDim">To</span>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm uppercase tracking-wide text-vantage-textDim">To</span>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputClass} />
         </label>
         {filtered && (
@@ -62,7 +62,7 @@ export default function HistoryPage() {
               setFrom('')
               setTo('')
             }}
-            className="h-10 rounded-lg border border-vantage-border px-3 text-xs text-vantage-textDim transition-colors hover:text-vantage-text"
+            className="flex h-14 items-center rounded-lg border border-vantage-border px-5 text-base text-vantage-textDim transition-colors hover:text-vantage-text"
           >
             Clear
           </button>
@@ -89,13 +89,13 @@ export default function HistoryPage() {
             {events.map((event) => (
               <li
                 key={event.id}
-                className="flex gap-4 border-b border-vantage-border/60 px-4 py-3.5 last:border-b-0"
+                className="flex gap-5 border-b border-vantage-border/60 min-h-[100px] px-5 py-5 last:border-b-0"
               >
-                <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-vantage-accent" />
+                <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-vantage-accent" />
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2.5">
                     {event.title && (
-                      <p className="truncate text-sm text-vantage-text">{event.title}</p>
+                      <p className="truncate text-base text-vantage-text">{event.title}</p>
                     )}
                     {event.at && (
                       <time dateTime={event.at} className="text-xs text-vantage-textDim">
@@ -104,10 +104,10 @@ export default function HistoryPage() {
                     )}
                   </div>
                   {event.description && (
-                    <p className="text-xs text-vantage-textDim">{event.description}</p>
+                    <p className="mt-0.5 text-sm text-vantage-textDim">{event.description}</p>
                   )}
                   {event.type && (
-                    <span className="mt-1.5 inline-block rounded bg-vantage-raised px-1.5 py-0.5 text-[10px] uppercase text-vantage-alert">
+                    <span className="mt-2 inline-block rounded bg-vantage-raised px-2 py-0.5 text-xs uppercase text-vantage-alert">
                       {event.type}
                     </span>
                   )}

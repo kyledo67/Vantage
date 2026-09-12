@@ -40,7 +40,7 @@ export function ToastProvider({ children }) {
     <ToastContext.Provider value={value}>
       {children}
       <div
-        className="pointer-events-none fixed right-4 top-[84px] z-50 flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2"
+        className="pointer-events-none fixed right-4 top-[84px] z-50 flex w-[min(22rem,calc(100vw-2rem))] flex-col gap-2.5"
         role="region"
         aria-label="Notifications"
       >
@@ -54,14 +54,14 @@ export function ToastProvider({ children }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: DURATION.nav, ease: EASE.out }}
-              className={`pointer-events-auto flex items-start gap-3 rounded-xl border px-3.5 py-3 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.9)] ${
+              className={`pointer-events-auto flex items-start gap-4 rounded-xl border px-5 py-4 shadow-[0_18px_40px_-20px_rgba(0,0,0,0.9)] ${
                 TONE[toast.tone] ?? TONE.neutral
               }`}
             >
               <div className="min-w-0 flex-1">
                 {toast.title && <p className="text-xs font-medium">{toast.title}</p>}
                 {toast.description && (
-                  <p className="mt-0.5 text-[11px] text-vantage-textDim">{toast.description}</p>
+                  <p className="mt-0.5 text-xs text-vantage-textDim">{toast.description}</p>
                 )}
               </div>
               <motion.button
@@ -69,7 +69,7 @@ export function ToastProvider({ children }) {
                 whileTap={PRESS_BUTTON}
                 onClick={() => dismiss(toast.id)}
                 aria-label="Dismiss notification"
-                className="-mr-1 -mt-1 rounded p-1 text-vantage-textDim transition-colors hover:text-vantage-text"
+                className="-mr-1.5 -mt-1.5 rounded p-1.5 text-vantage-textDim transition-colors hover:text-vantage-text"
               >
                 <svg width="11" height="11" viewBox="0 0 12 12" aria-hidden="true">
                   <path

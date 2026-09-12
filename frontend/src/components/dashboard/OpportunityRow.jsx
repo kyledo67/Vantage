@@ -5,16 +5,18 @@ import ValueFlash from '../../motion/ValueFlash.jsx'
 import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
 
 // Column template shared by the header and every row so they stay aligned.
+// Widened proportionally for the larger type scale, and the trailing column
+// now matches the 56px chevron button so it's never clipped.
 export const COLUMNS =
-  'grid grid-cols-[1.9fr_1.1fr_0.85fr_0.7fr_0.8fr_0.7fr_28px] items-center gap-3'
+  'grid grid-cols-[2fr_1.1fr_0.9fr_0.85fr_0.9fr_0.8fr_56px] items-center gap-5'
 
 /** Detail panel — each block is skipped entirely when its data is absent. */
 function ExpandedPanel({ detail, status, onMethodology }) {
   if (status === 'loading' || status === 'idle') {
     return (
-      <div className="flex flex-col gap-3 px-4 pb-4" aria-busy="true">
+      <div className="flex flex-col gap-4 px-5 pb-5" aria-busy="true">
         <Skeleton className="h-3 w-40" />
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           {[0, 1, 2, 3].map((i) => (
             <Skeleton key={i} className="h-16 flex-1 rounded-lg" />
           ))}
@@ -26,7 +28,7 @@ function ExpandedPanel({ detail, status, onMethodology }) {
 
   if (status === 'error') {
     return (
-      <p className="px-4 pb-4 text-xs text-vantage-textDim">
+      <p className="px-5 pb-5 text-xs text-vantage-textDim">
         Couldn&apos;t load the details for this market.
       </p>
     )
@@ -39,41 +41,41 @@ function ExpandedPanel({ detail, status, onMethodology }) {
   if (!hasAnything) return null
 
   return (
-    <div className="flex flex-col gap-4 px-4 pb-4">
+    <div className="flex flex-col gap-5 px-5 pb-5">
       {sources?.length > 0 && (
         <div>
-          <p className="mb-2 text-[10px] uppercase tracking-wide text-vantage-alert">
+          <p className="mb-2.5 text-sm uppercase tracking-wide text-vantage-alert">
             Market prices
           </p>
-          <div className="no-scrollbar flex gap-2 overflow-x-auto">
+          <div className="no-scrollbar flex gap-4 overflow-x-auto">
             {sources.map((source) => (
               <div
                 key={source.id ?? source.name}
-                className="min-w-[8.5rem] flex-shrink-0 rounded-lg border border-vantage-border bg-vantage-surface p-3"
+                className="min-w-[11rem] flex-shrink-0 rounded-lg border border-vantage-border bg-vantage-surface p-5"
               >
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2.5">
                   {source.iconUrl ? (
-                    <img src={source.iconUrl} alt="" className="h-3.5 w-3.5 rounded-sm object-cover" />
+                    <img src={source.iconUrl} alt="" className="h-[18px] w-[18px] rounded-sm object-cover" />
                   ) : (
-                    <PlaceholderIcon name={source.name} className="h-3.5 w-3.5" />
+                    <PlaceholderIcon name={source.name} className="h-[18px] w-[18px]" />
                   )}
                   {source.name && (
-                    <span className="truncate text-[11px] text-vantage-textDim">{source.name}</span>
+                    <span className="truncate text-xs text-vantage-textDim">{source.name}</span>
                   )}
                 </div>
                 {source.priceLabel && (
-                  <p className="mt-1.5 text-lg font-semibold leading-none text-vantage-text">
+                  <p className="mt-2 text-lg font-semibold leading-none text-vantage-text">
                     {source.priceLabel}
                   </p>
                 )}
                 {source.otherPriceLabel && (
-                  <p className="mt-1 text-[11px] text-vantage-textDim">
+                  <p className="mt-1.5 text-xs text-vantage-textDim">
                     {source.otherName && <span className="truncate">{source.otherName} </span>}
                     <span className="font-medium text-vantage-text">{source.otherPriceLabel}</span>
                   </p>
                 )}
                 {source.subLabel && (
-                  <p className="mt-1 text-[10px] text-vantage-textDim">{source.subLabel}</p>
+                  <p className="mt-1.5 text-xs text-vantage-textDim">{source.subLabel}</p>
                 )}
               </div>
             ))}
@@ -83,14 +85,14 @@ function ExpandedPanel({ detail, status, onMethodology }) {
 
       {signal && (
         <div>
-          <div className="flex items-center justify-between text-[11px] text-vantage-textDim">
+          <div className="flex items-center justify-between text-xs text-vantage-textDim">
             {signal.leftLabel && <span>{signal.leftLabel}</span>}
             {signal.rightLabel && (
               <span className="text-vantage-alert">{signal.rightLabel}</span>
             )}
           </div>
           {typeof signal.percent === 'number' && (
-            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-vantage-raised">
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-vantage-raised">
               <motion.div
                 className="h-full rounded-full bg-vantage-hero"
                 initial={{ width: 0 }}
@@ -103,9 +105,9 @@ function ExpandedPanel({ detail, status, onMethodology }) {
       )}
 
       {stats?.length > 0 && (
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
+        <div className="flex flex-wrap gap-x-8 gap-y-2.5">
           {stats.map((stat) => (
-            <span key={stat.label} className="text-[11px] text-vantage-textDim">
+            <span key={stat.label} className="text-xs text-vantage-textDim">
               {stat.label}{' '}
               <span
                 className={
@@ -125,7 +127,7 @@ function ExpandedPanel({ detail, status, onMethodology }) {
         <button
           type="button"
           onClick={onMethodology}
-          className="self-start text-[11px] font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+          className="flex min-h-[56px] items-center self-start text-sm font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
         >
           How this is calculated →
         </button>
@@ -190,34 +192,36 @@ export default function OpportunityRow({
       </AnimatePresence>
 
       {/* Desktop row */}
-      <div className={`${COLUMNS} hidden px-4 py-3 md:grid`} role="row">
-        <div className="flex min-w-0 items-center gap-2.5" role="cell">
+      <div className={`${COLUMNS} hidden min-h-[100px] px-5 py-5 lg:grid`} role="row">
+        <div className="flex min-w-0 items-center gap-4" role="cell">
           <input
             type="checkbox"
             checked={selected}
             onChange={() => onSelect(opportunity.id)}
             aria-label={selection?.title ? `Select ${selection.title}` : 'Select opportunity'}
-            className="h-3.5 w-3.5 flex-shrink-0 accent-[#CE63E9]"
+            className="h-6 w-6 flex-shrink-0 accent-[#CE63E9]"
           />
           {selection?.avatarUrl && (
             <img
               src={selection.avatarUrl}
               alt=""
-              className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
+              className="h-12 w-12 flex-shrink-0 rounded-full object-cover"
             />
           )}
           <div className="min-w-0">
             {selection?.title && (
-              <p className="truncate text-sm font-medium text-vantage-text">{selection.title}</p>
+              <p className="truncate text-base font-medium leading-tight text-vantage-text">
+                {selection.title}
+              </p>
             )}
-            <div className="flex items-center gap-1.5">
+            <div className="mt-1.5 flex items-center gap-2">
               {selection?.subtitle && (
-                <p className="truncate text-xs text-vantage-textDim">{selection.subtitle}</p>
+                <p className="truncate text-sm text-vantage-textDim">{selection.subtitle}</p>
               )}
               {selection?.tags?.map((tag) => (
                 <span
                   key={tag}
-                  className="flex-shrink-0 rounded bg-vantage-surfaceAlt px-1.5 py-0.5 text-[9px] uppercase text-vantage-textDim"
+                  className="flex-shrink-0 rounded bg-vantage-surfaceAlt px-2 py-0.5 text-xs uppercase text-vantage-textDim"
                 >
                   {tag}
                 </span>
@@ -227,9 +231,11 @@ export default function OpportunityRow({
         </div>
 
         <div className="min-w-0" role="cell">
-          {market?.title && <p className="truncate text-xs text-vantage-text">{market.title}</p>}
+          {market?.title && (
+            <p className="truncate text-sm text-vantage-text">{market.title}</p>
+          )}
           {market?.subtitle && (
-            <p className="truncate text-[11px] text-vantage-textDim">{market.subtitle}</p>
+            <p className="mt-0.5 truncate text-xs text-vantage-textDim">{market.subtitle}</p>
           )}
         </div>
 
@@ -240,12 +246,12 @@ export default function OpportunityRow({
         {/* Cells flash briefly when the backend sends a changed value. */}
         <div className="min-w-0" role="cell">
           {price?.label && (
-            <ValueFlash value={price.label} className="text-xs font-medium text-vantage-text">
+            <ValueFlash value={price.label} className="text-lg font-medium text-vantage-text">
               {price.label}
             </ValueFlash>
           )}
           {price?.otherLabel && (
-            <p className="truncate text-[11px] text-vantage-textDim">
+            <p className="mt-0.5 truncate text-xs text-vantage-textDim">
               {price.otherName ? `${price.otherName} ` : ''}
               {price.otherLabel}
             </p>
@@ -254,7 +260,7 @@ export default function OpportunityRow({
 
         <div role="cell">
           {hitChance && (
-            <ValueFlash value={hitChance} className="text-xs text-vantage-text">
+            <ValueFlash value={hitChance} className="text-lg font-semibold text-vantage-positive">
               {hitChance}
             </ValueFlash>
           )}
@@ -263,7 +269,7 @@ export default function OpportunityRow({
         <div role="cell">
           {ev?.label && (
             <ValueFlash value={ev.label} isPositive={ev.isPositive}>
-              <PositiveValue value={ev} className="text-xs" />
+              <PositiveValue value={ev} className="text-lg" />
             </ValueFlash>
           )}
         </div>
@@ -273,7 +279,7 @@ export default function OpportunityRow({
           onClick={() => onToggle(opportunity.id)}
           aria-expanded={expanded}
           aria-label={expanded ? 'Collapse details' : 'Expand details'}
-          className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-vantage-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-vantage-accent"
+          className="flex h-14 w-14 items-center justify-center rounded-md hover:bg-vantage-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-vantage-accent"
         >
           <Chevron open={expanded} />
         </button>
@@ -284,22 +290,24 @@ export default function OpportunityRow({
         type="button"
         onClick={() => onToggle(opportunity.id)}
         aria-expanded={expanded}
-        className="flex w-full flex-col gap-2 px-4 py-3 text-left md:hidden"
+        className="flex min-h-[100px] w-full flex-col gap-2.5 px-5 py-5 text-left lg:hidden"
       >
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             {selection?.title && (
-              <p className="truncate text-sm font-medium text-vantage-text">{selection.title}</p>
+              <p className="truncate text-base font-medium leading-tight text-vantage-text">
+                {selection.title}
+              </p>
             )}
             {selection?.subtitle && (
-              <p className="truncate text-xs text-vantage-textDim">{selection.subtitle}</p>
+              <p className="mt-0.5 truncate text-sm text-vantage-textDim">{selection.subtitle}</p>
             )}
           </div>
-          <PositiveValue value={ev} className="text-sm" />
+          <PositiveValue value={ev} className="text-lg" />
         </div>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-vantage-textDim">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-vantage-textDim">
           <PlatformBadge platform={platform} />
-          {price?.label && <span>{price.label}</span>}
+          {price?.label && <span className="text-lg text-vantage-text">{price.label}</span>}
           {price?.otherLabel && (
             <span>
               {price.otherName ? `${price.otherName} ` : ''}

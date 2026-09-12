@@ -31,7 +31,7 @@ export default function App() {
         <Route path="*" element={<NotFoundPage />} />
       </Route>
 
-      {/* Authenticated product shell (72px header + 220px sidebar).
+      {/* Authenticated product shell (72px header + 288px sidebar).
           NOTE: RequireAuth is UI gating only — the API must enforce the same
           rules server-side once auth is wired up. */}
       <Route

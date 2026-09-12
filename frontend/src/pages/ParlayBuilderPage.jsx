@@ -26,7 +26,7 @@ function ParlayNameField({ parlay, onRename }) {
         if (event.key === 'Enter') event.currentTarget.blur()
       }}
       aria-label="Parlay name"
-      className="w-full truncate bg-transparent text-sm font-semibold text-vantage-text outline-none focus-visible:underline focus-visible:decoration-vantage-accent"
+      className="w-full truncate bg-transparent text-lg font-semibold text-vantage-text outline-none focus-visible:underline focus-visible:decoration-vantage-accent"
     />
   )
 }
@@ -40,18 +40,18 @@ function ParlayCard({ parlay, onRename, onRemove, onViewDetails }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.2, ease: 'easeOut' }}
-      className="rounded-xl border border-vantage-accent/30 bg-vantage-surface p-4"
+      className="rounded-xl border border-vantage-accent/30 bg-vantage-surface p-6"
     >
       <ParlayNameField parlay={parlay} onRename={onRename} />
-      <p className="mt-1 text-[11px] text-vantage-textDim">
+      <p className="mt-2 text-sm text-vantage-textDim">
         {count} {count === 1 ? 'selection' : 'selections'}
       </p>
 
-      <dl className="mt-3 grid grid-cols-2 gap-3">
+      <dl className="mt-5 grid grid-cols-2 gap-5">
         <div>
-          <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">Estimated Edge</dt>
+          <dt className="text-sm uppercase tracking-wide text-vantage-alert">Estimated Edge</dt>
           <dd
-            className={`mt-0.5 text-sm font-semibold ${
+            className={`mt-1.5 text-xl font-semibold ${
               parlay.estimatedEdge ? 'text-vantage-positive' : 'text-vantage-textDim'
             }`}
           >
@@ -59,9 +59,9 @@ function ParlayCard({ parlay, onRename, onRemove, onViewDetails }) {
           </dd>
         </div>
         <div>
-          <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">Estimated Chance</dt>
+          <dt className="text-sm uppercase tracking-wide text-vantage-alert">Estimated Chance</dt>
           <dd
-            className={`mt-0.5 text-sm font-semibold ${
+            className={`mt-1.5 text-xl font-semibold ${
               parlay.estimatedChance ? 'text-vantage-positive' : 'text-vantage-textDim'
             }`}
           >
@@ -70,24 +70,24 @@ function ParlayCard({ parlay, onRename, onRemove, onViewDetails }) {
         </div>
       </dl>
 
-      <p className="mt-3 text-[11px] text-vantage-textDim">
+      <p className="mt-5 text-xs leading-relaxed text-vantage-textDim">
         Created{' '}
         {new Date(parlay.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}{' '}
         · this session
       </p>
 
-      <div className="mt-4 flex items-center gap-3">
+      <div className="mt-5 flex items-center gap-4">
         <button
           type="button"
           onClick={() => onViewDetails(parlay)}
-          className="rounded-full border border-vantage-accent/50 px-3 py-1.5 text-xs font-medium text-vantage-accent transition-colors hover:bg-vantage-accent/10"
+          className="flex min-h-[56px] items-center rounded-full border border-vantage-accent/50 px-5 text-sm font-medium text-vantage-accent transition-colors hover:bg-vantage-accent/10"
         >
           View details
         </button>
         <button
           type="button"
           onClick={() => onRemove(parlay.id)}
-          className="rounded-full border border-vantage-border px-3 py-1.5 text-xs font-medium text-vantage-textDim transition-colors hover:border-vantage-danger hover:text-vantage-danger"
+          className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-5 text-sm font-medium text-vantage-textDim transition-colors hover:border-vantage-danger hover:text-vantage-danger"
         >
           Remove
         </button>
@@ -101,7 +101,7 @@ export default function ParlayBuilderPage() {
   const [detailsParlay, setDetailsParlay] = useState(null)
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
       <SectionHeader
         title="My Parlays"
         description="Your saved hypothetical multi-selection analyses."
@@ -115,7 +115,7 @@ export default function ParlayBuilderPage() {
             action={
               <Link
                 to="/ev-finder"
-                className="mt-1 rounded-full bg-vantage-accent px-4 py-1.5 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
+                className="mt-1.5 flex min-h-[62px] items-center rounded-full bg-vantage-accent px-8 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
               >
                 Browse opportunities
               </Link>
@@ -123,7 +123,7 @@ export default function ParlayBuilderPage() {
           />
         </Panel>
       ) : (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence>
             {savedParlays.map((parlay) => (
               <ParlayCard

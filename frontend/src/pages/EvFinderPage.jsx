@@ -123,18 +123,18 @@ export default function EvFinderPage() {
   const selectedIds = useMemo(() => Object.keys(selectedMap), [selectedMap])
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6 pb-20">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8 pb-24">
+      <header className="flex flex-wrap items-start justify-between gap-5">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-vantage-text sm:text-3xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-vantage-text sm:text-5xl">
             Opportunities
           </h1>
-          <p className="mt-1 text-sm text-vantage-textDim">
+          <p className="mt-2.5 text-base leading-relaxed text-vantage-textDim">
             Market signals priced below broader consensus.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {/* Live state renders only when the backend reports one. */}
           {feed.status === 'loading' || feed.status === 'idle' ? (
             <Skeleton className="h-3 w-40" />
@@ -154,7 +154,7 @@ export default function EvFinderPage() {
             type="button"
             onClick={handleRefresh}
             disabled={feed.status === 'loading'}
-            className="rounded-full border border-vantage-border px-4 py-1.5 text-xs font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:cursor-wait disabled:opacity-50"
+            className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:cursor-wait disabled:opacity-50"
           >
             {feed.status === 'loading' ? 'Refreshing…' : 'Refresh odds'}
           </button>

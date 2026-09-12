@@ -35,22 +35,22 @@ export default function MethodologyPage() {
   const ActiveTabContent = TAB_CONTENT[activeTab]
 
   return (
-    // Cancels the dashboard shell's own p-4/sm:p-6 so this page can use its
+    // Cancels the dashboard shell's own p-5/sm:p-8 so this page can use its
     // own spec'd padding (24px mobile, 64px/56px desktop) without doubling up.
-    <div className="-mx-4 -my-4 sm:-mx-6 sm:-my-6">
-      <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-6 py-4 sm:px-16 sm:py-14">
+    <div className="-mx-5 -my-5 sm:-mx-8 sm:-my-8">
+      <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-10 px-8 py-5 sm:px-20 sm:py-20">
         {hasContext && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: DURATION.expand, ease: EASE.out }}
-            className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-vantage-border bg-vantage-surface px-4 py-3"
+            className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-vantage-border bg-vantage-surface px-5 py-4"
           >
             <div className="min-w-0">
-              <p className="text-[10px] uppercase tracking-wide text-vantage-alert">
+              <p className="text-sm font-medium uppercase tracking-wide text-vantage-alert">
                 Viewing methodology for this opportunity
               </p>
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-vantage-textDim">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-vantage-textDim">
                 {opportunity.title && (
                   <span className="truncate font-medium text-vantage-text">{opportunity.title}</span>
                 )}
@@ -63,7 +63,7 @@ export default function MethodologyPage() {
             {backTo && (
               <Link
                 to={backTo}
-                className="flex-shrink-0 text-xs font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+                className="flex-shrink-0 min-h-[56px] flex items-center text-sm font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
               >
                 ← {backLabel}
               </Link>
@@ -71,14 +71,14 @@ export default function MethodologyPage() {
           </motion.div>
         )}
 
-        <header className="flex flex-col gap-3">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-vantage-accent">
+        <header className="flex flex-col gap-5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-vantage-accent">
             Learn Vantage
           </span>
-          <h1 className="text-2xl font-semibold tracking-tight text-vantage-text sm:text-3xl">
+          <h1 className="text-4xl font-semibold tracking-tight text-vantage-text sm:text-5xl">
             Understand the price before you take a position.
           </h1>
-          <p className="max-w-2xl text-sm leading-relaxed text-vantage-textDim">
+          <p className="max-w-2xl text-base leading-relaxed text-vantage-textDim">
             Vantage compares available sports-market prices with broader market context to help
             you understand whether a contract may be priced favorably.
           </p>
@@ -104,16 +104,16 @@ export default function MethodologyPage() {
           </AnimatePresence>
         </div>
 
-        <div className="flex flex-wrap items-center gap-5 border-t border-vantage-border pt-6">
+        <div className="flex flex-wrap items-center gap-6 border-t border-vantage-border pt-8">
           <Link
             to="/ev-finder"
-            className="rounded-full bg-vantage-accent px-5 py-2.5 text-sm font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
+            className="flex min-h-[62px] items-center rounded-full bg-vantage-accent px-8 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
           >
             Explore opportunities
           </Link>
           <Link
             to={backTo ?? '/ev-finder'}
-            className="text-sm font-medium text-vantage-textDim transition-colors hover:text-vantage-text"
+            className="flex min-h-[56px] items-center text-base font-medium text-vantage-textDim transition-colors hover:text-vantage-text"
           >
             Back to dashboard
           </Link>

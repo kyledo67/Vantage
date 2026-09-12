@@ -71,25 +71,29 @@ function GlossaryRow({ term }) {
   const hasDetails = term.details?.length > 0
 
   const label = (
-    <span className="flex min-w-0 items-start gap-2.5">
-      <span className="mt-0.5 flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-vantage-raised text-vantage-accent">
+    <span className="flex min-w-0 items-start gap-4">
+      <span className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-vantage-raised text-vantage-accent">
         <TermIcon />
       </span>
       <span className="min-w-0">
-        <span className="block text-sm font-medium text-vantage-text">{term.term}</span>
-        <span className="block text-xs leading-relaxed text-vantage-textDim">{term.definition}</span>
+        <span className="block text-lg font-medium leading-tight text-vantage-text">{term.term}</span>
+        <span className="mt-1.5 block text-sm leading-relaxed text-vantage-textDim">
+          {term.definition}
+        </span>
       </span>
     </span>
   )
 
   if (!hasDetails) {
     return (
-      <li className="rounded-xl border border-vantage-border bg-vantage-surface px-4 py-3">{label}</li>
+      <li className="min-h-[100px] rounded-xl border border-vantage-border bg-vantage-surface px-5 py-5">
+        {label}
+      </li>
     )
   }
 
   return (
-    <li className="rounded-xl border border-vantage-border bg-vantage-surface px-4 py-3">
+    <li className="min-h-[100px] rounded-xl border border-vantage-border bg-vantage-surface px-5 py-5">
       <Accordion
         open={open}
         onToggle={() => setOpen((current) => !current)}
@@ -100,9 +104,9 @@ function GlossaryRow({ term }) {
           </>
         }
       >
-        <ul className="ml-8 mt-2 flex flex-col gap-1.5 border-l border-vantage-border pl-3">
+        <ul className="ml-12 mt-2.5 flex flex-col gap-2.5 border-l border-vantage-border pl-4">
           {term.details.map((detail) => (
-            <li key={detail} className="text-xs leading-relaxed text-vantage-textDim">
+            <li key={detail} className="text-sm leading-relaxed text-vantage-textDim">
               {detail}
             </li>
           ))}
@@ -124,32 +128,32 @@ export default function BettingBasicsTab() {
   }, [query])
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="rounded-xl border border-vantage-accentEnd/40 bg-vantage-raised p-4">
-        <p className="text-[10px] uppercase tracking-wide text-vantage-alert">Start here</p>
-        <p className="mt-1 text-sm font-medium text-vantage-text">
+    <div className="flex flex-col gap-8">
+      <div className="rounded-xl border border-vantage-accentEnd/40 bg-vantage-raised p-6">
+        <p className="text-sm font-medium uppercase tracking-wide text-vantage-alert">Start here</p>
+        <p className="mt-2 text-base font-medium text-vantage-text">
           Odds → Implied Probability → EV → Edge
         </p>
       </div>
 
       <label className="relative block max-w-sm">
         <span className="sr-only">Search betting terms</span>
-        <SearchIcon className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-vantage-textDim" />
+        <SearchIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-vantage-textDim" />
         <input
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search betting terms"
-          className="h-10 w-full rounded-full border border-vantage-border bg-vantage-surface pl-9 pr-4 text-sm text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
+          className="h-14 w-full rounded-full border border-vantage-border bg-vantage-surface pl-12 pr-5 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
         />
       </label>
 
       {filtered.length === 0 ? (
-        <p className="py-8 text-center text-sm text-vantage-textDim">
+        <p className="py-10 text-center text-base text-vantage-textDim">
           No terms match &ldquo;{query}&rdquo;.
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-2.5">
           {filtered.map((term) => (
             <GlossaryRow key={term.id} term={term} />
           ))}

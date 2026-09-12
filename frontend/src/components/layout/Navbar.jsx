@@ -26,7 +26,7 @@ const productLinks = [
 ]
 
 function centerLinkClass({ isActive }) {
-  return `border-b-[3px] pb-1 text-sm transition-colors ${
+  return `flex min-h-[56px] items-center border-b-[3px] pb-1.5 text-base transition-colors ${
     isActive
       ? 'border-vantage-accent text-vantage-text'
       : 'border-transparent text-vantage-textDim hover:text-vantage-text'
@@ -53,7 +53,7 @@ function ProductMenu() {
         aria-expanded={open}
         aria-haspopup="true"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 text-sm text-vantage-textDim transition-colors hover:text-vantage-text"
+        className="flex min-h-[56px] items-center gap-2 border-b-[3px] border-transparent pb-1.5 text-base text-vantage-textDim transition-colors hover:text-vantage-text"
       >
         Product
         <svg
@@ -74,21 +74,21 @@ function ProductMenu() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.15 }}
-            className="absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 pt-3"
+            className="absolute left-1/2 top-full z-20 w-64 -translate-x-1/2 pt-4"
           >
-            <div className="overflow-hidden rounded-xl border border-vantage-border bg-vantage-surface p-1.5 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]">
+            <div className="overflow-hidden rounded-xl border border-vantage-border bg-vantage-surface p-2 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]">
               {productLinks.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   onClick={() => setOpen(false)}
-                  className="block rounded-lg px-3 py-2.5 transition-colors hover:bg-vantage-raised"
+                  className="block rounded-lg px-4 py-2.5 transition-colors hover:bg-vantage-raised"
                 >
-                  <span className="flex items-center gap-1.5 text-sm font-medium text-vantage-text">
+                  <span className="flex items-center gap-2 text-base font-medium text-vantage-text">
                     {item.label}
                     {!isAuthenticated && <LockIcon />}
                   </span>
-                  <span className="block text-xs text-vantage-textDim">{item.blurb}</span>
+                  <span className="mt-0.5 block text-xs text-vantage-textDim">{item.blurb}</span>
                 </Link>
               ))}
             </div>
@@ -110,34 +110,34 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-30 border-b border-vantage-border bg-vantage-nav/85 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-4 py-4 sm:px-6 lg:px-16">
-        <Link to="/" className="flex items-center gap-2" aria-label="Vantage home">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-20">
+        <Link to="/" className="flex items-center gap-2.5" aria-label="Vantage home">
           <span className="text-xl font-semibold tracking-tight text-vantage-text">
             <span className="text-gradient-lavender">V</span>antage
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-8 md:flex" aria-label="Main">
+        <nav className="hidden items-center gap-10 md:flex" aria-label="Main">
           <ProductMenu />
           <NavLink to="/methodology" className={centerLinkClass}>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-2">
               Methodology
               {!isAuthenticated && <LockIcon />}
             </span>
           </NavLink>
           <NavLink to="/ev-finder" className={centerLinkClass}>
-            <span className="flex items-center gap-1.5">
+            <span className="flex items-center gap-2">
               Markets
               {!isAuthenticated && <LockIcon />}
             </span>
           </NavLink>
         </nav>
 
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-6">
           {isAuthenticated ? (
             <>
               <span
-                className="hidden max-w-[14rem] truncate text-sm text-vantage-textDim sm:block"
+                className="hidden max-w-[14rem] truncate text-base text-vantage-textDim sm:block"
                 title={user.email}
               >
                 {user.email}
@@ -145,7 +145,7 @@ export default function Navbar() {
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-full border border-vantage-border px-4 py-1.5 text-sm font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent"
+                className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent"
               >
                 Log out
               </button>
@@ -154,7 +154,7 @@ export default function Navbar() {
             <>
               <Link
                 to="/login"
-                className="text-sm text-vantage-textDim transition-colors hover:text-vantage-text"
+                className="flex min-h-[56px] items-center text-base text-vantage-textDim transition-colors hover:text-vantage-text"
               >
                 Log in
               </Link>
@@ -162,7 +162,7 @@ export default function Navbar() {
               <motion.div whileTap={{ scale: 0.96 }}>
                 <Link
                   to="/login"
-                  className="inline-block rounded-full bg-vantage-accent px-5 py-2 text-sm font-medium text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
+                  className="flex min-h-[62px] items-center rounded-full bg-vantage-accent px-8 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
                 >
                   Get started
                 </Link>

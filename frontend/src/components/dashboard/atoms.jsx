@@ -17,7 +17,7 @@ export function PlaceholderIcon({ name, className = 'h-4 w-4' }) {
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex flex-shrink-0 items-center justify-center rounded-sm text-[9px] font-semibold text-white ${className}`}
+      className={`inline-flex flex-shrink-0 items-center justify-center rounded-sm text-xs font-semibold text-white ${className}`}
       style={{ backgroundColor: `hsl(${hue}, 45%, 38%)` }}
     >
       {label.charAt(0).toUpperCase() || '?'}
@@ -29,11 +29,11 @@ export function PlaceholderIcon({ name, className = 'h-4 w-4' }) {
 export function PlatformBadge({ platform }) {
   if (!platform?.name) return null
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-vantage-text">
+    <span className="inline-flex items-center gap-2.5 text-sm text-vantage-text">
       {platform.iconUrl ? (
-        <img src={platform.iconUrl} alt="" className="h-4 w-4 rounded-sm object-cover" />
+        <img src={platform.iconUrl} alt="" className="h-5 w-5 rounded-sm object-cover" />
       ) : (
-        <PlaceholderIcon name={platform.name} />
+        <PlaceholderIcon name={platform.name} className="h-5 w-5" />
       )}
       <span className="truncate">{platform.name}</span>
     </span>
@@ -46,7 +46,7 @@ export function StatusIndicator({ status }) {
   const positive = status.isPositive === true
   return (
     <span
-      className={`inline-flex items-center gap-1.5 text-xs ${
+      className={`inline-flex items-center gap-2 text-xs ${
         positive ? 'text-vantage-positive' : 'text-vantage-textDim'
       }`}
     >
@@ -72,15 +72,8 @@ export function PositiveValue({ value, className = '' }) {
   const positive =
     value.isPositive === true || (value.isPositive === undefined && Number(value.value) > 0)
   return (
-    <span className={`inline-flex items-baseline gap-1.5 ${className}`}>
-      <span className={`font-semibold ${positive ? 'text-vantage-positive' : 'text-vantage-text'}`}>
-        {value.label}
-      </span>
-      {value.probabilityLabel && (
-        <span className="text-[10px] font-medium text-vantage-positive">
-          {value.probabilityLabel}
-        </span>
-      )}
+    <span className={`font-semibold ${positive ? 'text-vantage-positive' : 'text-vantage-text'} ${className}`}>
+      {value.label}
     </span>
   )
 }

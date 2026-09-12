@@ -127,8 +127,8 @@ export default function PriceHistoryChart({ history, height = 180 }) {
 
   return (
     <div className="relative">
-      <div className="mb-2 flex items-baseline justify-between">
-        <span className="text-[10px] uppercase tracking-wide text-vantage-alert">Price history</span>
+      <div className="mb-2.5 flex items-baseline justify-between">
+        <span className="text-sm uppercase tracking-wide text-vantage-alert">Price history</span>
         {last?.value != null && (
           <span className="text-sm font-semibold text-vantage-text">
             {last.value}
@@ -225,10 +225,10 @@ export default function PriceHistoryChart({ history, height = 180 }) {
         )}
       </svg>
 
-      <div className="mt-1 flex items-center justify-between text-[10px] text-vantage-textDim">
+      <div className="mt-1.5 flex items-center justify-between text-xs text-vantage-textDim">
         {geometry.consensus != null && Number.isFinite(geometry.consensus) && (
           <span>
-            <span className="mr-1 inline-block h-px w-3 border-t border-dashed border-vantage-textDim align-middle" />
+            <span className="mr-1.5 inline-block h-px w-3 border-t border-dashed border-vantage-textDim align-middle" />
             Consensus {geometry.consensus}
             {suffix}
           </span>

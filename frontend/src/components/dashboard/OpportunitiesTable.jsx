@@ -8,21 +8,21 @@ import { DURATION, EASE, PRESS_BUTTON } from '../../motion/tokens.js'
 /** Above this many rows the list is windowed; below it the DOM cost is trivial
  *  and plain rendering keeps expansion/measurement simpler. */
 const VIRTUALIZE_THRESHOLD = 30
-const ESTIMATED_ROW_HEIGHT = 64
+const ESTIMATED_ROW_HEIGHT = 116
 
 const HEADINGS = ['Event / Selection', 'Market', 'Platform', 'Price', 'Est. hit', 'EV']
 
 function TableHeader() {
   return (
     <div
-      className={`${COLUMNS} hidden border-b border-vantage-border px-4 py-2.5 md:grid`}
+      className={`${COLUMNS} hidden min-h-[56px] items-center border-b border-vantage-border px-5 py-4 lg:grid`}
       role="row"
     >
       {HEADINGS.map((heading) => (
         <span
           key={heading}
           role="columnheader"
-          className="text-[10px] uppercase tracking-wide text-vantage-textDim"
+          className="text-sm font-medium uppercase tracking-wide text-vantage-textDim"
         >
           {heading}
         </span>
@@ -40,28 +40,31 @@ function TableSkeleton({ rows = 6 }) {
         Loading opportunities…
       </span>
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="border-b border-vantage-border/60 px-4 py-3 last:border-b-0">
-          <div className={`${COLUMNS} hidden md:grid`}>
-            <div className="flex items-center gap-2.5">
-              <Skeleton className="h-7 w-7 rounded-full" />
-              <div className="flex flex-1 flex-col gap-1.5">
-                <Skeleton className="h-3 w-32" />
-                <Skeleton className="h-2.5 w-24" />
+        <div
+          key={i}
+          className="min-h-[100px] border-b border-vantage-border/60 px-5 py-5 last:border-b-0"
+        >
+          <div className={`${COLUMNS} hidden lg:grid`}>
+            <div className="flex items-center gap-4">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <div className="flex flex-1 flex-col gap-2.5">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
               </div>
             </div>
-            <div className="flex flex-col gap-1.5">
-              <Skeleton className="h-2.5 w-20" />
-              <Skeleton className="h-2.5 w-16" />
+            <div className="flex flex-col gap-2.5">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-16" />
             </div>
-            <Skeleton className="h-2.5 w-16" />
-            <Skeleton className="h-2.5 w-12" />
-            <Skeleton className="h-2.5 w-10" />
-            <Skeleton className="h-2.5 w-12" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-16" />
+            <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-3 w-16" />
             <span />
           </div>
-          <div className="flex flex-col gap-2 md:hidden">
-            <Skeleton className="h-3 w-40" />
-            <Skeleton className="h-2.5 w-28" />
+          <div className="flex flex-col gap-2.5 lg:hidden">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3 w-28" />
           </div>
         </div>
       ))}
@@ -71,7 +74,7 @@ function TableSkeleton({ rows = 6 }) {
 
 function EmptyState({ onRefresh }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+    <div className="flex flex-col items-center gap-4 px-8 py-20 text-center">
       <svg className="animate-icon-in" width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <rect
           x="7"
@@ -93,8 +96,8 @@ function EmptyState({ onRefresh }) {
         />
       </svg>
       <div>
-        <p className="text-sm font-medium text-vantage-text">No opportunities yet</p>
-        <p className="mt-1 max-w-sm text-xs text-vantage-textDim">
+        <p className="text-base font-medium text-vantage-text">No opportunities yet</p>
+        <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-vantage-textDim">
           New market signals will appear here when they are available.
         </p>
       </div>
@@ -102,7 +105,7 @@ function EmptyState({ onRefresh }) {
         type="button"
         whileTap={PRESS_BUTTON}
         onClick={onRefresh}
-        className="mt-1 rounded-full border border-vantage-border px-4 py-1.5 text-xs font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
+        className="mt-1.5 flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
       >
         Refresh
       </motion.button>
@@ -112,7 +115,7 @@ function EmptyState({ onRefresh }) {
 
 function ErrorState({ onRetry, message }) {
   return (
-    <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+    <div className="flex flex-col items-center gap-4 px-8 py-20 text-center">
       {/* One gentle pulse on entry, then still — error states never loop. */}
       <svg className="animate-pulse-once" width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <circle cx="24" cy="24" r="15" stroke="#794BD4" strokeWidth="1.4" opacity="0.55" />
@@ -120,8 +123,8 @@ function ErrorState({ onRetry, message }) {
         <circle cx="24" cy="30.5" r="1.2" fill="#AAA1B4" />
       </svg>
       <div>
-        <p className="text-sm font-medium text-vantage-text">Couldn&apos;t load opportunities</p>
-        <p className="mt-1 max-w-sm text-xs text-vantage-textDim">
+        <p className="text-base font-medium text-vantage-text">Couldn&apos;t load opportunities</p>
+        <p className="mx-auto mt-2 max-w-sm text-xs leading-relaxed text-vantage-textDim">
           {message ||
             'The market data service did not respond. Refresh to request current prices.'}
         </p>
@@ -130,7 +133,7 @@ function ErrorState({ onRetry, message }) {
         type="button"
         whileTap={PRESS_BUTTON}
         onClick={onRetry}
-        className="mt-1 rounded-full bg-vantage-accent px-4 py-1.5 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
+        className="mt-1.5 flex min-h-[56px] items-center rounded-full bg-vantage-accent px-6 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
       >
         Try again
       </motion.button>
