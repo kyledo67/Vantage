@@ -150,11 +150,14 @@ class PersonaClient:
 
         if inquiry is None:
             inquiry = self.find_incomplete_inquiry(reference_id)
-        if (
-            inquiry is None
-            or inquiry.status in {"declined", "failed", "expired"}
-            or (inquiry.status == "approved" and not inquiry.residence_country_code)
-        ):
+        # Note: an "approved" inquiry is never discarded here, even if
+        # residence extraction came back empty — that's a data-extraction
+        # bug to fix (see extract_residence), not something a fresh inquiry
+        # can fix. Discarding it here previously caused a real bug: every
+        # "Check status" click on an approved-but-unparsed inquiry spawned a
+        # brand new, never-completed inquiry and overwrote the profile's
+        # stored persona_inquiry_id, permanently orphaning the real approval.
+        if inquiry is None or inquiry.status in {"declined", "failed", "expired"}:
             inquiry = self.create_inquiry(reference_id)
 
         if inquiry.status in {"started", "pending"}:
@@ -174,9 +177,16 @@ def _field_value(fields, *names):
 def extract_residence(inquiry_attributes):
     """Extract normalized residence values from a Persona inquiry payload."""
 
+    # Persona returns field keys with underscores (e.g. "address_country_code"),
+    # not hyphens — confirmed against a real inquiry payload. Hyphenated
+    # aliases are kept as a fallback in case another template ever uses them.
     fields = (inquiry_attributes or {}).get("fields") or {}
     country_code = _field_value(
         fields,
+        "address_country_code",
+        "selected_country_code",
+        "country_of_residence",
+        "country_code",
         "address-country-code",
         "country-of-residence",
         "selected-country-code",
@@ -187,10 +197,12 @@ def extract_residence(inquiry_attributes):
 
     subdivision = _field_value(
         fields,
-        "address-subdivision",
-        "residence-subdivision",
+        "address_subdivision",
+        "residence_subdivision",
         "state",
         "province",
+        "address-subdivision",
+        "residence-subdivision",
     ).upper()
     return country_code, subdivision
 
