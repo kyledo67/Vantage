@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { usePortfolio } from '../../context/PortfolioContext.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 
 function LockIcon() {
@@ -22,7 +21,8 @@ function LockIcon() {
 // Product dropdown — only routes that actually exist.
 const productLinks = [
   { to: '/ev-finder', label: 'EV Finder', blurb: 'Contracts priced below market' },
-  { to: '/portfolio', label: 'Portfolio', blurb: 'Combine independent positions' },
+  { to: '/markets', label: 'Markets', blurb: 'Browse sports, events, and contracts' },
+  { to: '/parlay', label: 'Parlay Builder', blurb: 'Review selections together' },
 ]
 
 function centerLinkClass({ isActive }) {
@@ -100,7 +100,6 @@ function ProductMenu() {
 }
 
 export default function Navbar() {
-  const { selectedContracts } = usePortfolio()
   const { isAuthenticated, user, logout } = useAuth()
   const navigate = useNavigate()
 
@@ -132,18 +131,6 @@ export default function Navbar() {
         </nav>
 
         <div className="flex items-center gap-5">
-          {isAuthenticated && selectedContracts.length > 0 && (
-            <Link
-              to="/portfolio"
-              className="hidden text-sm text-vantage-textDim transition-colors hover:text-vantage-text sm:block"
-            >
-              Portfolio
-              <span className="ml-1.5 rounded-full bg-vantage-raised px-1.5 py-0.5 text-[10px] text-vantage-text">
-                {selectedContracts.length}
-              </span>
-            </Link>
-          )}
-
           {isAuthenticated ? (
             <>
               <span

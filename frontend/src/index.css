@@ -11,7 +11,45 @@
   }
 }
 
+@layer components {
+  /* Skeleton shimmer — violet-charcoal surface with a restrained purple sweep.
+     Never contains text, so it can't be mistaken for real data. */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background-color: #1c1a24;
+    border-radius: 6px;
+  }
+  .skeleton::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgba(206, 99, 233, 0.09), transparent);
+    animation: vantage-shimmer 1.6s ease-in-out infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton::after {
+      animation: none;
+    }
+  }
+}
+
+@keyframes vantage-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   .text-gradient {
     background: linear-gradient(135deg, #ce63e9 0%, #794bd4 100%);
     -webkit-background-clip: text;
