@@ -1,9 +1,10 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useAsync } from '../hooks/useAsync.js'
 import { getSettings, updateSetting } from '../services/dashboard.js'
 import { Skeleton } from '../components/dashboard/atoms.jsx'
 import { Panel, PanelEmpty, PanelError, SectionHeader } from '../components/dashboard/states.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { openPersonaVerification } from '../services/persona.js'
 
 const controlClass =
   'h-14 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-5 text-base text-vantage-text focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent'
@@ -12,6 +13,10 @@ const controlClass =
  *  can be added server-side without touching this file. */
 function SettingField({ field, onChange, saving }) {
   const [value, setValue] = useState(field.value ?? '')
+
+  useEffect(() => {
+    setValue(field.value ?? '')
+  }, [field.value])
 
   const commit = (next) => {
     setValue(next)
@@ -79,7 +84,8 @@ function SettingField({ field, onChange, saving }) {
           <button
             type="button"
             onClick={() => onChange(field.id, true)}
-            className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-5 text-sm font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent"
+            disabled={saving}
+            className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-5 text-sm font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:cursor-wait disabled:opacity-60"
           >
             {field.actionLabel || 'Manage'}
           </button>
@@ -94,18 +100,33 @@ export default function SettingsPage() {
   const { logout } = useAuth()
   const [savingId, setSavingId] = useState(null)
   const [saveError, setSaveError] = useState(null)
+  const [saveMessage, setSaveMessage] = useState(null)
 
   const handleChange = useCallback(async (fieldId, value) => {
     setSavingId(fieldId)
     setSaveError(null)
+    setSaveMessage(null)
     try {
-      await updateSetting(fieldId, value)
+      if (fieldId === 'persona_verification') {
+        const result = await openPersonaVerification()
+        if (!result.cancelled) {
+          setSaveMessage(
+            result.verified
+              ? 'Verification approved.'
+              : 'Verification submitted. Persona is processing the result.'
+          )
+        }
+        await settings.refetch()
+      } else {
+        await updateSetting(fieldId, value)
+        setSaveMessage('Setting saved.')
+      }
     } catch (err) {
       setSaveError(err?.message || 'That change could not be saved.')
     } finally {
       setSavingId(null)
     }
-  }, [])
+  }, [settings])
 
   const sections = settings.data?.sections ?? []
 
@@ -116,6 +137,11 @@ export default function SettingsPage() {
       {saveError && (
         <p className="rounded-lg border border-vantage-danger/40 bg-vantage-danger/10 px-5 py-4 text-sm text-vantage-text">
           {saveError}
+        </p>
+      )}
+      {saveMessage && (
+        <p className="rounded-lg border border-vantage-positive/40 bg-vantage-positive/10 px-5 py-4 text-sm text-vantage-text">
+          {saveMessage}
         </p>
       )}
 
@@ -194,7 +220,7 @@ export default function SettingsPage() {
           <p className="text-base text-vantage-textDim">Sign out of Vantage on this device.</p>
           <button
             type="button"
-            onClick={logout}
+            onClick={() => logout().catch((err) => setSaveError(err?.message || 'Sign out failed.'))}
             className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base font-medium text-vantage-text transition-colors hover:border-vantage-danger hover:text-vantage-danger"
           >
             Sign out

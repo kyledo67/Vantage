@@ -169,6 +169,12 @@ NESSIE_API_BASE_URL = env("NESSIE_API_BASE_URL", default="http://api.nessieisrea
 PERSONA_API_KEY = env("PERSONA_API_KEY", default="")
 PERSONA_INQUIRY_TEMPLATE_ID = env("PERSONA_INQUIRY_TEMPLATE_ID", default="")
 PERSONA_API_BASE_URL = env("PERSONA_API_BASE_URL", default="https://api.withpersona.com/api/v1")
+PERSONA_API_VERSION = env("PERSONA_API_VERSION", default="2025-10-27")
+PERSONA_ENVIRONMENT_ID = env("PERSONA_ENVIRONMENT_ID", default="")
+PERSONA_WEBHOOK_SECRET = env("PERSONA_WEBHOOK_SECRET", default="")
+PERSONA_REQUEST_TIMEOUT_SECONDS = env.int(
+    "PERSONA_REQUEST_TIMEOUT_SECONDS", default=10
+)
 
 
 # Password validation

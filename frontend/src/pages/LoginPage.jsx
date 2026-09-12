@@ -16,28 +16,82 @@ function Wordmark({ className = '' }) {
   )
 }
 
-// Demo auth: no backend yet, so any credentials are accepted and the "session"
-// lives in localStorage. It gates the UI only — see AuthContext for the caveat.
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [mode, setMode] = useState('signin')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
 
-  const { login } = useAuth()
+  const { login, signup, resetPassword, updatePassword, passwordRecovery } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
+  const isRecovery = passwordRecovery || new URLSearchParams(location.search).has('recovery')
+  const oauthProviders = [
+    import.meta.env.VITE_SUPABASE_GOOGLE_ENABLED === 'true' && 'google',
+    import.meta.env.VITE_SUPABASE_APPLE_ENABLED === 'true' && 'apple',
+  ].filter(Boolean)
 
-  // Where the guard bounced them from, else straight to the EV Finder.
-  const redirectTo = location.state?.from?.pathname || '/ev-finder'
+  // Keep post-auth redirects inside this application.
+  const requestedPath = location.state?.from?.pathname
+  const redirectTo = /^\/[a-zA-Z0-9/_-]*$/.test(requestedPath || '')
+    ? requestedPath
+    : '/ev-finder'
 
-  async function signIn(credentials) {
-    await login(credentials)
-    navigate(redirectTo, { replace: true })
+  async function run(action) {
+    setBusy(true)
+    setError('')
+    setMessage('')
+    try {
+      await action()
+    } catch (err) {
+      setError(err?.message || 'Authentication failed. Please try again.')
+    } finally {
+      setBusy(false)
+    }
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
-    signIn({ email })
+    await run(async () => {
+      if (isRecovery) {
+        if (password !== confirmPassword) throw new Error('Passwords do not match.')
+        await updatePassword(password)
+        navigate('/ev-finder', { replace: true })
+        return
+      }
+
+      if (mode === 'signup') {
+        const data = await signup({ email, password })
+        if (data.session) navigate(redirectTo, { replace: true })
+        else setMessage('Check your email to confirm your account, then sign in.')
+        return
+      }
+
+      await login({ email, password })
+      navigate(redirectTo, { replace: true })
+    })
+  }
+
+  async function handlePasswordReset() {
+    await run(async () => {
+      if (!email) throw new Error('Enter your email address first.')
+      await resetPassword(email)
+      setMessage('Password reset instructions were sent to your email.')
+    })
+  }
+
+  async function handleOAuth(provider) {
+    await run(() => login({ provider, redirectTo }))
+  }
+
+  function switchMode(nextMode) {
+    setMode(nextMode)
+    setError('')
+    setMessage('')
   }
 
   return (
@@ -92,8 +146,20 @@ export default function LoginPage() {
         >
           <Wordmark className="mb-10 lg:hidden" />
 
-          <h2 className="text-2xl font-semibold text-vantage-text sm:text-3xl">Welcome back.</h2>
-          <p className="mt-2 text-base text-vantage-textDim">Sign in to find your next edge.</p>
+          <h2 className="text-2xl font-semibold text-vantage-text sm:text-3xl">
+            {isRecovery
+              ? 'Choose a new password.'
+              : mode === 'signup'
+                ? 'Create your account.'
+                : 'Welcome back.'}
+          </h2>
+          <p className="mt-2 text-base text-vantage-textDim">
+            {isRecovery
+              ? 'Enter a new password for your Vantage account.'
+              : mode === 'signup'
+                ? 'Sign up to save preferences and verification status.'
+                : 'Sign in to find your next edge.'}
+          </p>
 
           {location.state?.from && (
             <p className="mt-5 rounded-lg border border-vantage-accent/30 bg-vantage-accent/10 px-5 py-4 text-sm text-vantage-text">
@@ -108,7 +174,18 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-6">
-            <label className="block">
+            {error && (
+              <p className="rounded-lg border border-vantage-danger/40 bg-vantage-danger/10 px-5 py-4 text-sm text-vantage-text">
+                {error}
+              </p>
+            )}
+            {message && (
+              <p className="rounded-lg border border-vantage-positive/40 bg-vantage-positive/10 px-5 py-4 text-sm text-vantage-text">
+                {message}
+              </p>
+            )}
+
+            {!isRecovery && <label className="block">
               <span className="mb-2 block text-xs font-medium text-vantage-text">Email address</span>
               <input
                 type="email"
@@ -118,18 +195,21 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 className="h-16 w-full rounded-lg border border-vantage-border bg-vantage-surface px-5 text-base text-vantage-text placeholder:text-vantage-textDim/70 focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
               />
-            </label>
+            </label>}
 
             <label className="block">
               <div className="mb-2 flex items-center justify-between">
                 <span className="text-xs font-medium text-vantage-text">Password</span>
-                <button
-                  type="button"
-                  className="flex min-h-[56px] items-center text-sm font-medium text-vantage-accent hover:underline"
-                  onClick={() => alert('Password reset isn’t wired up in this demo yet.')}
-                >
-                  Forgot password?
-                </button>
+                {!isRecovery && mode === 'signin' && (
+                  <button
+                    type="button"
+                    className="flex min-h-[56px] items-center text-sm font-medium text-vantage-accent hover:underline"
+                    onClick={handlePasswordReset}
+                    disabled={busy}
+                  >
+                    Forgot password?
+                  </button>
+                )}
               </div>
               <div className="relative">
                 <input
@@ -150,57 +230,79 @@ export default function LoginPage() {
               </div>
             </label>
 
+            {isRecovery && (
+              <label className="block">
+                <span className="mb-2 block text-xs font-medium text-vantage-text">
+                  Confirm new password
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  className="h-16 w-full rounded-lg border border-vantage-border bg-vantage-surface px-5 text-base text-vantage-text placeholder:text-vantage-textDim/70 focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent"
+                />
+              </label>
+            )}
+
             <motion.button
               type="submit"
               whileTap={{ scale: 0.98 }}
-              className="mt-1.5 flex min-h-[62px] w-full items-center justify-center rounded-lg bg-vantage-accent text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
+              disabled={busy}
+              className="mt-1.5 flex min-h-[62px] w-full items-center justify-center rounded-lg bg-vantage-accent text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 disabled:cursor-wait disabled:opacity-60"
             >
-              Sign in
+              {busy
+                ? 'Please wait…'
+                : isRecovery
+                  ? 'Update password'
+                  : mode === 'signup'
+                    ? 'Create account'
+                    : 'Sign in'}
             </motion.button>
 
-            <p className="rounded-lg border border-vantage-border bg-vantage-surface px-5 py-4 text-sm leading-relaxed text-vantage-textDim">
-              <span className="font-medium text-vantage-text">Demo build:</span> no auth backend
-              yet, so any email and password will sign you in.
-            </p>
-
-            <div className="flex items-center gap-4 py-1.5">
+            {!isRecovery && oauthProviders.length > 0 && <div className="flex items-center gap-4 py-1.5">
               <div className="h-px flex-1 bg-vantage-border" />
               <span className="text-sm uppercase tracking-wide text-vantage-textDim">
                 or continue with
               </span>
               <div className="h-px flex-1 bg-vantage-border" />
-            </div>
+            </div>}
 
-            <div className="grid grid-cols-2 gap-4">
-              <button
+            {!isRecovery && oauthProviders.length > 0 && (
+              <div className={`grid gap-4 ${oauthProviders.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {oauthProviders.includes('google') && <button
                 type="button"
-                onClick={() => signIn({ provider: 'google' })}
-                className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-lg border border-vantage-border bg-vantage-surface text-base font-medium text-vantage-text hover:border-vantage-borderLight"
+                onClick={() => handleOAuth('google')}
+                disabled={busy}
+                className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-lg border border-vantage-border bg-vantage-surface text-base font-medium text-vantage-text hover:border-vantage-borderLight disabled:cursor-wait disabled:opacity-60"
               >
                 <GoogleMark />
                 Google
-              </button>
-              <button
+              </button>}
+              {oauthProviders.includes('apple') && <button
                 type="button"
-                onClick={() => signIn({ provider: 'apple' })}
-                className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-lg border border-vantage-border bg-vantage-surface text-base font-medium text-vantage-text hover:border-vantage-borderLight"
+                onClick={() => handleOAuth('apple')}
+                disabled={busy}
+                className="flex min-h-[56px] items-center justify-center gap-2.5 rounded-lg border border-vantage-border bg-vantage-surface text-base font-medium text-vantage-text hover:border-vantage-borderLight disabled:cursor-wait disabled:opacity-60"
               >
                 <AppleMark />
                 Apple
-              </button>
-            </div>
+              </button>}
+              </div>
+            )}
           </form>
 
-          <p className="mt-10 text-center text-base text-vantage-textDim">
-            New to Vantage?{' '}
+          {!isRecovery && <p className="mt-10 text-center text-base text-vantage-textDim">
+            {mode === 'signup' ? 'Already have an account?' : 'New to Vantage?'}{' '}
             <button
               type="button"
-              onClick={() => alert('Account creation isn’t wired up in this demo yet.')}
+              onClick={() => switchMode(mode === 'signup' ? 'signin' : 'signup')}
               className="font-semibold text-vantage-accent hover:underline"
             >
-              Create an account
+              {mode === 'signup' ? 'Sign in' : 'Create an account'}
             </button>
-          </p>
+          </p>}
 
           <p className="mt-12 text-center text-xs leading-relaxed text-vantage-textDim">
             By continuing, you agree to our Terms and Privacy Policy. Vantage is a market-analysis
