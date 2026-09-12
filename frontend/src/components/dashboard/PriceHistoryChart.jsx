@@ -1,4 +1,5 @@
-import { useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { DURATION } from '../../motion/tokens.js'
 
 /**
  * Backend-provided price history.
@@ -12,6 +13,7 @@ import { useMemo, useRef, useState } from 'react'
 export default function PriceHistoryChart({ history, height = 180 }) {
   const points = history?.points ?? []
   const svgRef = useRef(null)
+  const pathRef = useRef(null)
   const [hover, setHover] = useState(null)
 
   const geometry = useMemo(() => {
@@ -41,6 +43,73 @@ export default function PriceHistoryChart({ history, height = 180 }) {
       consensus,
     }
   }, [points, history?.consensus])
+
+  /*
+   * Draw-in effect, driven by requestAnimationFrame rather than a CSS
+   * transition/keyframe. Two approaches were tried and rejected first:
+   *
+   *  1. SVG `pathLength="1"` + a CSS @keyframes on stroke-dashoffset: the
+   *     engine resolved the keyframe's unitless "1" as a literal 1px rather
+   *     than "1 pathLength-unit", so the dash pattern didn't match the path's
+   *     real geometry and part of the line rendered as a permanent gap.
+   *  2. getTotalLength() + a CSS `transition`: this fixed #1's math, but the
+   *     transition runs on the compositor thread, which isn't governed by
+   *     the same clock as this effect's own timing assumptions — verified by
+   *     a diagnostic reading a stuck/inconsistent dashoffset that didn't
+   *     match what was actually painted.
+   *
+   * A rAF loop removes that ambiguity: the animation is plain, inspectable
+   * JS on the main thread, with no separate compositor timeline to fall out
+   * of sync with.
+   *
+   * The resting state — set only once dash values are computed below — is
+   * skipped entirely if the effect can't run (no ref, reduced motion), in
+   * which case the plain, undecorated <path> renders fully drawn by default.
+   */
+  useLayoutEffect(() => {
+    const path = pathRef.current
+    if (!path || !geometry) return undefined
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const length = path.getTotalLength()
+
+    if (reduceMotion || !Number.isFinite(length) || length === 0) {
+      path.style.strokeDasharray = 'none'
+      path.style.strokeDashoffset = '0'
+      return undefined
+    }
+
+    path.style.strokeDasharray = `${length}`
+    path.style.strokeDashoffset = `${length}`
+
+    const durationMs = DURATION.chart * 1000
+    const easeOutCubic = (t) => 1 - (1 - t) ** 3
+    const start = performance.now()
+    let frame = requestAnimationFrame(function tick(now) {
+      const t = Math.min(1, (now - start) / durationMs)
+      path.style.strokeDashoffset = `${length * (1 - easeOutCubic(t))}`
+      if (t < 1) frame = requestAnimationFrame(tick)
+    })
+
+    // rAF can legitimately stop being scheduled before the animation reaches
+    // t=1 — a backgrounded tab, aggressive throttling, or (as measured while
+    // building this) a constrained headless renderer that only delivers a
+    // couple of frames. When that happens the loop above stalls just short of
+    // "fully drawn," which is worse than not animating at all. This timer
+    // doesn't care how many rAF frames actually ran — it unconditionally
+    // finishes the job once the animation's duration has elapsed.
+    const finish = setTimeout(() => {
+      cancelAnimationFrame(frame)
+      path.style.strokeDashoffset = '0'
+    }, durationMs + 50)
+
+    return () => {
+      cancelAnimationFrame(frame)
+      clearTimeout(finish)
+    }
+    // Re-run only when the plotted geometry actually changes — never on hover.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geometry?.path])
 
   if (!geometry) return null
 
@@ -107,14 +176,29 @@ export default function PriceHistoryChart({ history, height = 180 }) {
           />
         )}
 
+        {/*
+          Draw-in is handled by the useLayoutEffect above (see its comment) —
+          this element carries no dash attributes itself.
+
+          Deliberately NO vectorEffect="non-scaling-stroke" here, unlike the
+          gridlines/consensus line/hover marker below. This chart's viewBox
+          (100x100) is stretched non-uniformly onto its box (~3:1 wide:tall),
+          and on a multi-segment CURVED path, non-scaling-stroke under that
+          much anisotropy produced a broken stroke outline at the curve's
+          extremum — a real gap in the line, confirmed by removing it and
+          watching the gap disappear. The straight decorative lines don't hit
+          this (no curvature to break), so they keep it for constant on-screen
+          width. Re-adding it here reintroduces the broken line.
+        */}
         <path
+          key={geometry.path}
+          ref={pathRef}
           d={geometry.path}
           fill="none"
           stroke="#CE63E9"
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          vectorEffect="non-scaling-stroke"
         />
 
         {hover != null && Number.isFinite(Number(points[hover]?.value)) && (

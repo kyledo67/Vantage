@@ -33,10 +33,10 @@ export function formatFreshness(updatedAtIso) {
 export function confidenceTone(level) {
   switch (level) {
     case 'high':
-      return 'text-vantage-positive border-vantage-positive/40 bg-vantage-positive/10'
+      return 'text-vantage-positive'
     case 'medium':
-      return 'text-vantage-alert border-vantage-alert/40 bg-vantage-alert/10'
+      return 'text-vantage-alert'
     default:
-      return 'text-vantage-danger border-vantage-danger/40 bg-vantage-danger/10'
+      return 'text-vantage-danger'
   }
 }

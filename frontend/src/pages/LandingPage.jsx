@@ -42,12 +42,13 @@ export default function LandingPage() {
           <div className="relative z-10">
             <motion.h1
               {...rise(0)}
-              className="text-[3.25rem] font-semibold leading-[0.95] tracking-[-0.02em] text-vantage-text sm:text-7xl xl:text-[6.25rem]"
+              className="text-[3.25rem] font-semibold leading-[1.05] tracking-[-0.02em] text-vantage-text sm:text-7xl xl:text-[6.25rem]"
             >
-              <span className="block">
-                Your <span className="text-gradient-lavender">V</span>antage
+              <span className="block">Your</span>
+              <span className="block whitespace-nowrap">
+                <span className="text-gradient-lavender">V</span>antage Point
               </span>
-              <span className="mt-1 block font-display font-normal tracking-normal">
+              <span className="-ml-1 mt-1 block font-display font-normal tracking-normal">
                 on the Market
               </span>
             </motion.h1>
@@ -122,7 +123,7 @@ export default function LandingPage() {
 
       {/* ── Positive EV feature — the one thing we actually have right now ──── */}
       <section className="flex flex-col gap-6 py-16">
-        <div className="max-w-xl">
+        <div className="mx-auto max-w-2xl text-center">
           <h2 className="text-2xl font-semibold text-vantage-text sm:text-3xl">
             Identify <span className="text-vantage-positive">+EV</span> opportunities
           </h2>
@@ -136,7 +137,7 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <OpportunityCard opportunity={heroCard} />
-          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-vantage-accent/30 bg-vantage-accent/5 p-6 text-center">
+          <div className="flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-vantage-positive/30 bg-vantage-positive/5 p-6 text-center">
             <p className="text-sm font-medium text-vantage-text">More on the way</p>
             <p className="max-w-xs text-xs text-vantage-textDim">
               Vantage is a hackathon MVP — the EV Finder is live today; parlay analysis,
@@ -144,7 +145,7 @@ export default function LandingPage() {
             </p>
             <Link
               to="/ev-finder"
-              className="mt-1 text-xs font-medium text-vantage-accent hover:underline"
+              className="mt-1 text-xs font-medium text-vantage-positive hover:underline"
             >
               See all opportunities →
             </Link>

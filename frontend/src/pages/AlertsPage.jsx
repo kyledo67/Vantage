@@ -10,6 +10,8 @@ import {
   setDeliveryChannel,
 } from '../services/dashboard.js'
 import { StatusIndicator } from '../components/dashboard/atoms.jsx'
+import { useToast } from '../motion/Toast.jsx'
+import { PRESS_BUTTON } from '../motion/tokens.js'
 import {
   DataPanel,
   Panel,
@@ -151,6 +153,7 @@ export default function AlertsPage() {
   const [tab, setTab] = useState('active')
   const [creating, setCreating] = useState(false)
   const [busyId, setBusyId] = useState(null)
+  const { notify } = useToast()
 
   const handleTogglePause = useCallback(
     async (id, paused) => {
@@ -158,11 +161,18 @@ export default function AlertsPage() {
       try {
         await setAlertPaused(id, paused)
         await alerts.refetch()
+        notify({ title: paused ? 'Alert paused' : 'Alert resumed' })
+      } catch (err) {
+        notify({
+          title: "Couldn't update that alert",
+          description: err?.message,
+          tone: 'critical',
+        })
       } finally {
         setBusyId(null)
       }
     },
-    [alerts]
+    [alerts, notify]
   )
 
   const handleDelete = useCallback(
@@ -171,19 +181,35 @@ export default function AlertsPage() {
       try {
         await deleteAlert(id)
         await alerts.refetch()
+        notify({ title: 'Alert deleted' })
+      } catch (err) {
+        notify({
+          title: "Couldn't delete that alert",
+          description: err?.message,
+          tone: 'critical',
+        })
       } finally {
         setBusyId(null)
       }
     },
-    [alerts]
+    [alerts, notify]
   )
 
   const handleChannel = useCallback(
     async (channelId, enabled) => {
-      await setDeliveryChannel(channelId, enabled)
-      await alerts.refetch()
+      try {
+        await setDeliveryChannel(channelId, enabled)
+        await alerts.refetch()
+        notify({ title: enabled ? 'Delivery channel enabled' : 'Delivery channel disabled' })
+      } catch (err) {
+        notify({
+          title: "Couldn't change delivery settings",
+          description: err?.message,
+          tone: 'critical',
+        })
+      }
     },
-    [alerts]
+    [alerts, notify]
   )
 
   const data = alerts.data
@@ -200,7 +226,7 @@ export default function AlertsPage() {
         actions={
           <motion.button
             type="button"
-            whileTap={{ scale: 0.97 }}
+            whileTap={PRESS_BUTTON}
             onClick={() => setCreating((v) => !v)}
             disabled={!canCreate}
             title={canCreate ? undefined : 'Alert options are unavailable right now'}
@@ -220,8 +246,7 @@ export default function AlertsPage() {
                 type="button"
                 role="tab"
                 aria-selected={tab === t.id}
-                whileTap={{ scale: 0.97 }}
-                transition={{ duration: 0.15 }}
+                whileTap={PRESS_BUTTON}
                 onClick={() => setTab(t.id)}
                 className={`rounded-lg border px-3.5 py-2 text-xs transition-colors ${
                   tab === t.id
@@ -247,6 +272,7 @@ export default function AlertsPage() {
                 onCreated={() => {
                   setCreating(false)
                   alerts.refetch()
+                  notify({ title: 'Alert created', tone: 'positive' })
                 }}
               />
             )}

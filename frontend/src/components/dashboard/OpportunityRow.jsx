@@ -1,5 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Chevron, PlatformBadge, PositiveValue, Skeleton } from './atoms.jsx'
+import ValueFlash from '../../motion/ValueFlash.jsx'
+import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
 
 // Column template shared by the header and every row so they stay aligned.
 export const COLUMNS =
@@ -125,11 +127,27 @@ export default function OpportunityRow({
   const { selection, market, platform, price, consensus, ev } = opportunity
 
   return (
-    <div
-      className={`border-b border-vantage-border/60 transition-colors last:border-b-0 ${
+    <motion.div
+      // Press feedback only — rows never animate continuously.
+      whileTap={PRESS_ROW}
+      className={`relative border-b border-vantage-border/60 transition-colors duration-150 last:border-b-0 active:bg-vantage-raised ${
         expanded ? 'bg-vantage-raised' : 'hover:bg-vantage-surfaceAlt/60'
       }`}
     >
+      {/* 3px accent that wipes in top-to-bottom on the selected row */}
+      <AnimatePresence>
+        {(expanded || selected) && (
+          <motion.span
+            initial={{ scaleY: 0 }}
+            animate={{ scaleY: 1 }}
+            exit={{ scaleY: 0 }}
+            transition={{ duration: DURATION.interaction, ease: EASE.out }}
+            style={{ originY: 0 }}
+            className="absolute inset-y-0 left-0 w-[3px] bg-vantage-accent"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Desktop row */}
       <div className={`${COLUMNS} hidden px-4 py-3 md:grid`} role="row">
         <div className="flex min-w-0 items-center gap-2.5" role="cell">
@@ -178,20 +196,29 @@ export default function OpportunityRow({
           <PlatformBadge platform={platform} />
         </div>
 
+        {/* Cells flash briefly when the backend sends a changed value. */}
         <div role="cell">
           {price?.label && (
-            <span className="text-xs font-medium text-vantage-text">{price.label}</span>
+            <ValueFlash value={price.label} className="text-xs font-medium text-vantage-text">
+              {price.label}
+            </ValueFlash>
           )}
         </div>
 
         <div role="cell">
           {consensus?.label && (
-            <span className="text-xs text-vantage-text">{consensus.label}</span>
+            <ValueFlash value={consensus.label} className="text-xs text-vantage-text">
+              {consensus.label}
+            </ValueFlash>
           )}
         </div>
 
         <div role="cell">
-          <PositiveValue value={ev} className="text-xs" />
+          {ev?.label && (
+            <ValueFlash value={ev.label} isPositive={ev.isPositive}>
+              <PositiveValue value={ev} className="text-xs" />
+            </ValueFlash>
+          )}
         </div>
 
         <button
@@ -240,13 +267,17 @@ export default function OpportunityRow({
             initial={{ height: 0 }}
             animate={{ height: 'auto' }}
             exit={{ height: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            transition={{ duration: DURATION.expand, ease: EASE.out }}
             className="overflow-hidden"
           >
-            <ExpandedPanel detail={detail} status={detailStatus} />
+            {/* Content fade uses a CSS keyframe whose resting state is visible,
+                so a skipped animation can never leave the panel blank. */}
+            <div className="animate-detail-in">
+              <ExpandedPanel detail={detail} status={detailStatus} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }

@@ -1,4 +1,6 @@
+import { motion } from 'framer-motion'
 import { Skeleton } from './atoms.jsx'
+import { PRESS_BUTTON } from '../../motion/tokens.js'
 
 /**
  * Shared loading / empty / error scaffolding used by every dashboard page.
@@ -27,7 +29,7 @@ export function PanelError({
 }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-      <svg width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <svg className="animate-pulse-once" width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <circle cx="24" cy="24" r="15" stroke="#794BD4" strokeWidth="1.4" opacity="0.55" />
         <path d="M24 17v9" stroke="#AAA1B4" strokeWidth="1.6" strokeLinecap="round" />
         <circle cx="24" cy="30.5" r="1.2" fill="#AAA1B4" />
@@ -37,13 +39,14 @@ export function PanelError({
         <p className="mx-auto mt-1 max-w-sm text-xs text-vantage-textDim">{description}</p>
       </div>
       {onRetry && (
-        <button
+        <motion.button
           type="button"
+          whileTap={PRESS_BUTTON}
           onClick={onRetry}
           className="mt-1 rounded-full bg-vantage-accent px-4 py-1.5 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
         >
           Try again
-        </button>
+        </motion.button>
       )}
     </div>
   )
@@ -53,7 +56,7 @@ export function PanelEmpty({ title, description, action, icon }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
       {icon ?? (
-        <svg width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <svg className="animate-icon-in" width="40" height="40" viewBox="0 0 48 48" fill="none" aria-hidden="true">
           <rect
             x="9"
             y="12"

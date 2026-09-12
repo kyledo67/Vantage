@@ -1,4 +1,6 @@
 import { NavLink } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { SPRING_PILL } from '../../motion/tokens.js'
 
 // Thin line icons, 18px, stroke-based.
 const icon = (path) =>
@@ -59,40 +61,51 @@ const navItems = [
   { label: 'Settings', to: '/settings', Icon: SettingsIcon },
 ]
 
-function itemClass({ isActive }) {
-  return `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
-    isActive
-      ? 'bg-vantage-raised font-medium text-vantage-alert'
-      : 'text-vantage-textDim hover:bg-vantage-surface hover:text-vantage-text'
-  }`
+/**
+ * The active background is a single shared element (layoutId) that springs
+ * between items on navigation, rather than one box fading out while another
+ * fades in. Label colour eases from muted lavender to #DF78FF alongside it.
+ */
+function NavItem({ label, to, Icon, onNavigate }) {
+  return (
+    <NavLink
+      to={to}
+      onClick={onNavigate}
+      className="relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm"
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <motion.span
+              layoutId="sidebar-active-pill"
+              transition={SPRING_PILL}
+              className="absolute inset-0 -z-10 rounded-lg bg-vantage-raised"
+            />
+          )}
+          <span
+            className={`flex items-center gap-3 transition-colors duration-200 ${
+              isActive
+                ? 'font-medium text-vantage-alert'
+                : 'text-vantage-textDim hover:text-vantage-text'
+            }`}
+          >
+            <Icon />
+            <span>{label}</span>
+          </span>
+        </>
+      )}
+    </NavLink>
+  )
 }
 
 export default function DashboardSidebar({ onNavigate }) {
   return (
     <div className="flex h-full flex-col justify-between bg-vantage-nav p-3">
       <nav className="flex flex-col gap-1" aria-label="Dashboard">
-        {navItems.map(({ label, to, Icon }) =>
-          to ? (
-            // No `end`: /markets/:id should keep "Markets" highlighted.
-            <NavLink key={label} to={to} className={itemClass} onClick={onNavigate}>
-              <Icon />
-              <span>{label}</span>
-            </NavLink>
-          ) : (
-            <span
-              key={label}
-              aria-disabled="true"
-              title="Not available yet"
-              className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-vantage-textDim/45"
-            >
-              <Icon />
-              <span>{label}</span>
-              <span className="ml-auto text-[9px] uppercase tracking-wide text-vantage-textDim/50">
-                Soon
-              </span>
-            </span>
-          )
-        )}
+        {/* No `end`: /markets/:id should keep "Markets" highlighted. */}
+        {navItems.map((item) => (
+          <NavItem key={item.label} {...item} onNavigate={onNavigate} />
+        ))}
       </nav>
 
       {/* Product information only — never market data. */}

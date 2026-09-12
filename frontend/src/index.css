@@ -25,8 +25,9 @@
     position: absolute;
     inset: 0;
     transform: translateX(-100%);
-    background: linear-gradient(90deg, transparent, rgba(206, 99, 233, 0.09), transparent);
-    animation: vantage-shimmer 1.6s ease-in-out infinite;
+    /* Very low-opacity lavender, moving slowly — presence, not motion. */
+    background: linear-gradient(90deg, transparent, rgba(223, 120, 255, 0.07), transparent);
+    animation: vantage-shimmer 2.4s ease-in-out infinite;
   }
   @media (prefers-reduced-motion: reduce) {
     .skeleton::after {
@@ -41,6 +42,103 @@
   }
 }
 
+/*
+ * Entrance / feedback animations.
+ *
+ * Each keyframe declares only a `from` state and no fill-mode, so the element's
+ * BASE style is its resting, fully-visible state. If an animation never runs
+ * (reduced motion, a stalled compositor, an older engine) the content is still
+ * visible — visibility is never gated on an animation completing.
+ */
+@keyframes vantage-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+@keyframes vantage-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes vantage-icon-in {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+}
+@keyframes vantage-pulse-once {
+  50% {
+    transform: scale(1.06);
+  }
+}
+@keyframes vantage-flash-positive {
+  from {
+    background-color: rgba(99, 214, 165, 0.22);
+  }
+}
+@keyframes vantage-flash-neutral {
+  from {
+    background-color: rgba(223, 120, 255, 0.2);
+  }
+}
+@keyframes vantage-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@layer utilities {
+  .animate-detail-in {
+    animation: vantage-detail-in 200ms var(--ease-out, ease-out);
+  }
+  .animate-panel-in {
+    animation: vantage-panel-in 180ms var(--ease-out, ease-out);
+  }
+  .animate-icon-in {
+    animation: vantage-icon-in 260ms var(--ease-out, ease-out);
+  }
+  /* One gentle pulse on entry, then still — never looped. */
+  .animate-pulse-once {
+    animation: vantage-icon-in 260ms ease-out, vantage-pulse-once 420ms 260ms ease-in-out;
+  }
+  .animate-flash-positive {
+    animation: vantage-flash-positive 700ms ease-out;
+  }
+  .animate-flash-neutral {
+    animation: vantage-flash-neutral 700ms ease-out;
+  }
+  .animate-live-dot {
+    animation: vantage-live-pulse 2.2s ease-in-out infinite;
+  }
+}
+
+/* Ambient loops stop when the tab is backgrounded (see usePageVisiblePause). */
+[data-hidden] .skeleton::after,
+[data-hidden] .animate-live-dot {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-detail-in,
+  .animate-panel-in,
+  .animate-icon-in,
+  .animate-pulse-once,
+  .animate-live-dot {
+    animation: none;
+  }
+  /* Value flashes stay as a brief tint — information, not movement. */
+  .animate-flash-positive,
+  .animate-flash-neutral {
+    animation-duration: 400ms;
+  }
+}
+
 @layer utilities {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -51,14 +149,22 @@
   }
 
   .text-gradient {
+    display: inline-block;
+    padding-top: 0.12em;
+    margin-top: -0.12em;
     background: linear-gradient(135deg, #ce63e9 0%, #794bd4 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
 
-  /* Lighter lavender start — used for the EV Finder hero's emphasis line. */
+  /* Lighter lavender start — used for the EV Finder hero's emphasis line.
+     display:inline-block + matched padding/negative-margin keeps
+     background-clip:text from slicing the top off tall glyphs like "V". */
   .text-gradient-lavender {
+    display: inline-block;
+    padding-top: 0.12em;
+    margin-top: -0.12em;
     background: linear-gradient(135deg, #df78ff 0%, #794bd4 100%);
     -webkit-background-clip: text;
     background-clip: text;

@@ -5,6 +5,8 @@ import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
 import DashboardSidebar from '../components/dashboard/DashboardSidebar.jsx'
 import { getAccount } from '../services/opportunities.js'
 import { useAsync } from '../hooks/useAsync.js'
+import { usePageVisiblePause } from '../motion/usePageVisible.js'
+import { DURATION, EASE } from '../motion/tokens.js'
 
 /**
  * Authenticated shell: fixed 72px header, fixed 220px sidebar below it on
@@ -14,6 +16,9 @@ import { useAsync } from '../hooks/useAsync.js'
 export default function DashboardLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [search, setSearch] = useState('')
+
+  // Stops shimmer/live-dot loops while the tab is backgrounded.
+  usePageVisiblePause()
 
   const account = useAsync(getAccount, [])
   const handleSearchChange = useCallback((next) => setSearch(next), [])
@@ -41,7 +46,7 @@ export default function DashboardLayout() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: DURATION.nav }}
               onClick={() => setDrawerOpen(false)}
               className="fixed inset-0 z-40 bg-black/60 lg:hidden"
             />
@@ -49,7 +54,7 @@ export default function DashboardLayout() {
               initial={{ x: -240 }}
               animate={{ x: 0 }}
               exit={{ x: -240 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
+              transition={{ duration: DURATION.nav, ease: EASE.out }}
               className="fixed bottom-0 left-0 top-[72px] z-50 w-[220px] border-r border-vantage-border lg:hidden"
             >
               <DashboardSidebar onNavigate={() => setDrawerOpen(false)} />
