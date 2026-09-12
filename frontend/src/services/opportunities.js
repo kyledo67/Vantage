@@ -1,34 +1,61 @@
 import { api } from './api.js'
-import { mockOpportunities } from '../mocks/mockOpportunities.js'
 
-// While the Django backend isn't wired up yet, the frontend can run standalone
-// against mock data. Set VITE_USE_MOCKS=false once GET /api/opportunities is live.
-const USE_MOCKS = import.meta.env.VITE_USE_MOCKS !== 'false'
+/**
+ * EV Finder data access. Backend-driven only — there is deliberately no mock,
+ * seeded, or fallback data here. If the API is unavailable the UI shows its
+ * error state rather than inventing market values.
+ *
+ * ── Expected response shapes ──────────────────────────────────────────────
+ *
+ * GET /api/opportunities?category&search&{filterId}=value
+ *   {
+ *     "live":    { "isLive": true, "updatedAt": "<ISO8601>" } | null,
+ *     "results": [ Opportunity ]
+ *   }
+ *
+ * Opportunity — every field except `id` is optional; the UI omits any visual
+ * element whose data is missing rather than substituting a placeholder.
+ *   {
+ *     "id": "<string>",
+ *     "selection": { "title", "subtitle", "avatarUrl", "tags": ["<string>"] },
+ *     "market":    { "title", "subtitle" },
+ *     "platform":  { "name", "iconUrl" },
+ *     "price":     { "label" },
+ *     "consensus": { "label" },
+ *     "ev":        { "label", "value": <number>, "isPositive": <boolean> },
+ *     "hasDetail": <boolean>
+ *   }
+ *
+ * GET /api/opportunities/{id}  → detail panel content
+ *   {
+ *     "sources": [ { "id", "name", "iconUrl", "priceLabel", "subLabel" } ],
+ *     "signal":  { "label", "percent": <0-100>, "leftLabel", "rightLabel" },
+ *     "stats":   [ { "label", "value", "isPositive": <boolean> } ]
+ *   }
+ *
+ * GET /api/filters → drives the tab + filter rows; no option is hardcoded here
+ *   {
+ *     "categories": [ { "id", "label" } ],
+ *     "filters":    [ { "id", "label", "options": [ { "value", "label" } ] } ]
+ *   }
+ */
 
-export async function getOpportunities(filters = {}) {
-  if (USE_MOCKS) {
-    return applyMockFilters(mockOpportunities, filters)
-  }
-  return api.get('/opportunities', filters)
+export function getOpportunities(params = {}) {
+  return api.get('/opportunities', params)
 }
 
-export async function getOpportunityById(id) {
-  if (USE_MOCKS) {
-    const found = mockOpportunities.find((o) => String(o.id) === String(id))
-    if (!found) throw new Error(`Opportunity ${id} not found`)
-    return found
-  }
+export function getOpportunityById(id) {
   return api.get(`/opportunities/${id}`)
 }
 
-function applyMockFilters(opportunities, filters) {
-  const { platform, sport, marketType, minEv, confidence } = filters
-  return opportunities.filter((o) => {
-    if (platform && o.platform !== platform) return false
-    if (sport && o.sport !== sport) return false
-    if (marketType && o.marketType !== marketType) return false
-    if (minEv && o.estimatedRoi < Number(minEv)) return false
-    if (confidence && o.confidence !== confidence) return false
-    return true
-  })
+export function getOpportunityDetail(id) {
+  return api.get(`/opportunities/${id}/detail`)
+}
+
+export function getFilterConfig() {
+  return api.get('/filters')
+}
+
+export function getAccount() {
+  return api.get('/account')
 }
