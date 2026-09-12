@@ -1,3 +1,56 @@
+import uuid
+
+from django.core.validators import MinValueValidator
 from django.db import models
 
-# Create your models here.
+
+class UserProfile(models.Model):
+    """A user's verified access status and self-declared risk settings."""
+
+    class VerificationStatus(models.TextChoices):
+        NOT_STARTED = "not_started", "Not started"
+        PENDING = "pending", "Pending"
+        VERIFIED = "verified", "Verified"
+        DECLINED = "declined", "Declined"
+
+    class MarketChoice(models.TextChoices):
+        KALSHI = "kalshi", "Kalshi"
+        POLYMARKET = "polymarket", "Polymarket"
+        BOTH = "both", "Kalshi and Polymarket"
+
+    # Match this value to the authenticated Supabase user's UUID when creating a profile.
+    uid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    persona_inquiry_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    verification_status = models.CharField(
+        max_length=20,
+        choices=VerificationStatus.choices,
+        default=VerificationStatus.NOT_STARTED,
+    )
+    is_age_verified = models.BooleanField(default=False)
+    markets = models.CharField(
+        max_length=20,
+        choices=MarketChoice.choices,
+        default=MarketChoice.BOTH,
+    )
+    bankroll = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        help_text="Amount the user has chosen to allocate for prediction markets.",
+    )
+    max_position_percent = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=5,
+        validators=[MinValueValidator(0)],
+        help_text="Maximum percentage of bankroll allowed on one opportunity.",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "user_profiles"
+
+    def __str__(self):
+        return str(self.uid)
