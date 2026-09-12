@@ -50,9 +50,9 @@ const SettingsIcon = icon(
  * render as disabled rather than as links to nowhere.
  */
 const navItems = [
-  { label: 'Discover', to: '/ev-finder', Icon: DiscoverIcon },
+  { label: 'Opportunities', to: '/ev-finder', Icon: DiscoverIcon },
   { label: 'Watchlist', to: '/watchlist', Icon: WatchlistIcon },
-  { label: 'Parlay Builder', to: '/parlay', Icon: ParlayIcon },
+  { label: 'My Parlays', to: '/parlay', Icon: ParlayIcon },
   { label: 'Alerts', to: '/alerts', Icon: AlertsIcon },
   { label: 'Markets', to: '/markets', Icon: MarketsIcon },
   { label: 'History', to: '/history', Icon: HistoryIcon },

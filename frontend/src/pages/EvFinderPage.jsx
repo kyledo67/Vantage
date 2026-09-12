@@ -1,9 +1,12 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import TabsAndFilters from '../components/dashboard/TabsAndFilters.jsx'
 import OpportunitiesTable from '../components/dashboard/OpportunitiesTable.jsx'
+import SelectionTray from '../components/dashboard/SelectionTray.jsx'
+import BuildParlayModal from '../components/dashboard/BuildParlayModal.jsx'
 import { Skeleton, StatusIndicator } from '../components/dashboard/atoms.jsx'
 import { useAsync } from '../hooks/useAsync.js'
+import { useParlays } from '../context/ParlayContext.jsx'
 import {
   getFilterConfig,
   getOpportunities,
@@ -22,11 +25,17 @@ function formatUpdated(iso) {
 
 export default function EvFinderPage() {
   const { search } = useOutletContext()
+  const navigate = useNavigate()
+  const { addParlay, showToast } = useParlays()
 
   const [category, setCategory] = useState('')
   const [filterValues, setFilterValues] = useState({})
   const [expandedId, setExpandedId] = useState(null)
-  const [selectedIds, setSelectedIds] = useState([])
+  // Keyed by id rather than a plain id list, so a selection made from one page
+  // of results survives a refetch/filter change without losing the
+  // opportunity's data — everything the parlay builder needs stays local.
+  const [selectedMap, setSelectedMap] = useState({})
+  const [builderOpen, setBuilderOpen] = useState(false)
   const refreshRequested = useRef(false)
 
   const filterConfig = useAsync(getFilterConfig, [])
@@ -57,11 +66,46 @@ export default function EvFinderPage() {
     setExpandedId((current) => (current === id ? null : id))
   }, [])
 
-  const handleSelect = useCallback((id) => {
-    setSelectedIds((current) =>
-      current.includes(id) ? current.filter((x) => x !== id) : [...current, id]
-    )
+  const rows = useMemo(() => feed.data?.results ?? [], [feed.data])
+
+  const handleSelect = useCallback(
+    (id) => {
+      setSelectedMap((current) => {
+        if (current[id]) {
+          const next = { ...current }
+          delete next[id]
+          return next
+        }
+        const opportunity = rows.find((row) => row.id === id)
+        return opportunity ? { ...current, [id]: opportunity } : current
+      })
+    },
+    [rows]
+  )
+
+  const handleClearSelection = useCallback(() => setSelectedMap({}), [])
+
+  const handleRemoveSelection = useCallback((id) => {
+    setSelectedMap((current) => {
+      const next = { ...current }
+      delete next[id]
+      return next
+    })
   }, [])
+
+  const handleSaveParlay = useCallback(
+    (parlay) => {
+      addParlay(parlay)
+      setSelectedMap({})
+      setBuilderOpen(false)
+      showToast({
+        message: 'Saved to My Parlays.',
+        actionLabel: 'View My Parlays',
+        onAction: () => navigate('/parlay'),
+      })
+    },
+    [addParlay, navigate, showToast]
+  )
 
   const handleFilterChange = useCallback((id, value) => {
     setFilterValues((current) => ({ ...current, [id]: value }))
@@ -74,11 +118,12 @@ export default function EvFinderPage() {
   }, [feed.refetch])
 
   const live = feed.data?.live
-  const rows = feed.data?.results ?? []
   const updatedLabel = formatUpdated(live?.updatedAt)
+  const selectedOpportunities = useMemo(() => Object.values(selectedMap), [selectedMap])
+  const selectedIds = useMemo(() => Object.keys(selectedMap), [selectedMap])
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
+    <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6 pb-20">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-vantage-text sm:text-3xl">
@@ -136,6 +181,21 @@ export default function EvFinderPage() {
         detailStatus={detail.status}
         selectedIds={selectedIds}
         onSelect={handleSelect}
+      />
+
+      <SelectionTray
+        count={selectedOpportunities.length}
+        onClear={handleClearSelection}
+        onBuild={() => setBuilderOpen(true)}
+      />
+
+      <BuildParlayModal
+        open={builderOpen}
+        onClose={() => setBuilderOpen(false)}
+        selections={selectedOpportunities}
+        onRemove={handleRemoveSelection}
+        onClearAll={handleClearSelection}
+        onSave={handleSaveParlay}
       />
     </div>
   )

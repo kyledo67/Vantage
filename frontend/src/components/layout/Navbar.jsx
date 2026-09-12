@@ -22,7 +22,7 @@ function LockIcon() {
 const productLinks = [
   { to: '/ev-finder', label: 'EV Finder', blurb: 'Contracts priced below market' },
   { to: '/markets', label: 'Markets', blurb: 'Browse sports, events, and contracts' },
-  { to: '/parlay', label: 'Parlay Builder', blurb: 'Review selections together' },
+  { to: '/parlay', label: 'My Parlays', blurb: 'Review selections together' },
 ]
 
 function centerLinkClass({ isActive }) {

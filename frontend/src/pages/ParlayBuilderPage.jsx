@@ -1,143 +1,144 @@
-import { useCallback, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAsync } from '../hooks/useAsync.js'
-import { getParlay, removeParlayLeg } from '../services/dashboard.js'
-import {
-  DataPanel,
-  Panel,
-  PanelEmpty,
-  SectionHeader,
-} from '../components/dashboard/states.jsx'
+import { AnimatePresence, motion } from 'framer-motion'
+import { SectionHeader, Panel, PanelEmpty } from '../components/dashboard/states.jsx'
+import ParlayDetailsModal from '../components/dashboard/ParlayDetailsModal.jsx'
+import { useParlays } from '../context/ParlayContext.jsx'
+
+function ParlayNameField({ parlay, onRename }) {
+  const [value, setValue] = useState(parlay.name)
+
+  // Stay in sync if the parlay is renamed elsewhere (e.g. another card instance).
+  useEffect(() => setValue(parlay.name), [parlay.name])
+
+  const commit = () => {
+    const next = value.trim() || 'Untitled parlay'
+    setValue(next)
+    if (next !== parlay.name) onRename(parlay.id, next)
+  }
+
+  return (
+    <input
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={commit}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') event.currentTarget.blur()
+      }}
+      aria-label="Parlay name"
+      className="w-full truncate bg-transparent text-sm font-semibold text-vantage-text outline-none focus-visible:underline focus-visible:decoration-vantage-accent"
+    />
+  )
+}
+
+function ParlayCard({ parlay, onRename, onRemove, onViewDetails }) {
+  const count = parlay.selections?.length ?? 0
+  return (
+    <motion.li
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2, ease: 'easeOut' }}
+      className="rounded-xl border border-vantage-accent/30 bg-vantage-surface p-4"
+    >
+      <ParlayNameField parlay={parlay} onRename={onRename} />
+      <p className="mt-1 text-[11px] text-vantage-textDim">
+        {count} {count === 1 ? 'selection' : 'selections'}
+      </p>
+
+      <dl className="mt-3 grid grid-cols-2 gap-3">
+        <div>
+          <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">Estimated Edge</dt>
+          <dd
+            className={`mt-0.5 text-sm font-semibold ${
+              parlay.estimatedEdge ? 'text-vantage-positive' : 'text-vantage-textDim'
+            }`}
+          >
+            {parlay.estimatedEdge ?? 'Unavailable'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">Estimated Chance</dt>
+          <dd
+            className={`mt-0.5 text-sm font-semibold ${
+              parlay.estimatedChance ? 'text-vantage-positive' : 'text-vantage-textDim'
+            }`}
+          >
+            {parlay.estimatedChance ?? 'Unavailable'}
+          </dd>
+        </div>
+      </dl>
+
+      <p className="mt-3 text-[11px] text-vantage-textDim">
+        Created{' '}
+        {new Date(parlay.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}{' '}
+        · this session
+      </p>
+
+      <div className="mt-4 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onViewDetails(parlay)}
+          className="rounded-full border border-vantage-accent/50 px-3 py-1.5 text-xs font-medium text-vantage-accent transition-colors hover:bg-vantage-accent/10"
+        >
+          View details
+        </button>
+        <button
+          type="button"
+          onClick={() => onRemove(parlay.id)}
+          className="rounded-full border border-vantage-border px-3 py-1.5 text-xs font-medium text-vantage-textDim transition-colors hover:border-vantage-danger hover:text-vantage-danger"
+        >
+          Remove
+        </button>
+      </div>
+    </motion.li>
+  )
+}
 
 export default function ParlayBuilderPage() {
-  const parlay = useAsync(getParlay, [])
-  const [removing, setRemoving] = useState(null)
-
-  const handleRemove = useCallback(
-    async (id) => {
-      setRemoving(id)
-      try {
-        await removeParlayLeg(id)
-        await parlay.refetch()
-      } finally {
-        setRemoving(null)
-      }
-    },
-    [parlay]
-  )
-
-  const legs = parlay.data?.legs ?? []
-  // Combined figures are computed server-side only — never derived here.
-  const combined = parlay.data?.combined ?? null
+  const { savedParlays, removeParlay, renameParlay } = useParlays()
+  const [detailsParlay, setDetailsParlay] = useState(null)
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
       <SectionHeader
-        title="Parlay Builder"
-        description="Review several contracts together to understand combined exposure."
+        title="My Parlays"
+        description="Your saved hypothetical multi-selection analyses."
       />
 
-      <p className="rounded-lg border border-vantage-alert/30 bg-vantage-alert/10 px-4 py-3 text-xs text-vantage-text">
-        Scenario planning only. Vantage does not place trades, and nothing here is an
-        instruction to act.
-      </p>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">
+      {savedParlays.length === 0 ? (
         <Panel>
-          <DataPanel
-            status={parlay.status}
-            isEmpty={legs.length === 0}
-            onRetry={parlay.refetch}
-            empty={
-              <PanelEmpty
-                title="No contracts selected"
-                description="Add saved opportunities to see how they look together."
-                action={
-                  <Link
-                    to="/ev-finder"
-                    className="mt-1 rounded-full border border-vantage-border px-4 py-1.5 text-xs font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent"
-                  >
-                    Browse the EV Finder
-                  </Link>
-                }
-              />
+          <PanelEmpty
+            title="No saved parlays"
+            description="Select opportunities to build a hypothetical parlay."
+            action={
+              <Link
+                to="/ev-finder"
+                className="mt-1 rounded-full bg-vantage-accent px-4 py-1.5 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
+              >
+                Browse opportunities
+              </Link>
             }
-          >
-            <ul>
-              {legs.map((leg) => (
-                <li
-                  key={leg.id}
-                  className="flex flex-wrap items-center justify-between gap-4 border-b border-vantage-border/60 px-4 py-3.5 last:border-b-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    {leg.title && (
-                      <p className="truncate text-sm font-medium text-vantage-text">{leg.title}</p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-x-3 text-xs text-vantage-textDim">
-                      {leg.subtitle && <span className="truncate">{leg.subtitle}</span>}
-                      {leg.platform?.name && <span>{leg.platform.name}</span>}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-xs">
-                    {leg.price?.label && (
-                      <span className="font-medium text-vantage-text">{leg.price.label}</span>
-                    )}
-                    {leg.implied?.label && (
-                      <span className="text-vantage-textDim">{leg.implied.label}</span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(leg.id)}
-                      disabled={removing === leg.id}
-                      className="rounded border border-vantage-border px-2 py-1 text-vantage-textDim transition-colors hover:border-vantage-danger hover:text-vantage-danger disabled:opacity-50"
-                    >
-                      {removing === leg.id ? 'Removing…' : 'Remove'}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </DataPanel>
+          />
         </Panel>
+      ) : (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <AnimatePresence>
+            {savedParlays.map((parlay) => (
+              <ParlayCard
+                key={parlay.id}
+                parlay={parlay}
+                onRename={renameParlay}
+                onRemove={removeParlay}
+                onViewDetails={setDetailsParlay}
+              />
+            ))}
+          </AnimatePresence>
+        </ul>
+      )}
 
-        {/* Combined analysis appears only when the backend supplies it. */}
-        {parlay.status === 'success' && combined && (
-          <Panel className="p-4">
-            <h2 className="text-sm font-semibold text-vantage-text">Combined view</h2>
-            <dl className="mt-3 flex flex-col gap-3">
-              {combined.exposure?.label && (
-                <div>
-                  <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">
-                    Combined exposure
-                  </dt>
-                  <dd className="text-lg font-semibold text-vantage-text">
-                    {combined.exposure.label}
-                  </dd>
-                </div>
-              )}
-              {combined.impliedOutcome?.label && (
-                <div>
-                  <dt className="text-[10px] uppercase tracking-wide text-vantage-alert">
-                    Implied outcome
-                  </dt>
-                  <dd className="text-lg font-semibold text-vantage-text">
-                    {combined.impliedOutcome.label}
-                  </dd>
-                </div>
-              )}
-            </dl>
-            {combined.notes?.length > 0 && (
-              <ul className="mt-4 flex flex-col gap-1.5 border-t border-vantage-border pt-3">
-                {combined.notes.map((note) => (
-                  <li key={note} className="text-[11px] leading-relaxed text-vantage-textDim">
-                    {note}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        )}
-      </div>
+      <ParlayDetailsModal parlay={detailsParlay} onClose={() => setDetailsParlay(null)} />
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import DashboardHeader from '../components/dashboard/DashboardHeader.jsx'
 import DashboardSidebar from '../components/dashboard/DashboardSidebar.jsx'
+import ToastHost from '../components/dashboard/ToastHost.jsx'
 import { getAccount } from '../services/opportunities.js'
 import { useAsync } from '../hooks/useAsync.js'
 
@@ -63,6 +64,8 @@ export default function DashboardLayout() {
           <Outlet context={{ search }} />
         </div>
       </main>
+
+      <ToastHost />
     </div>
   )
 }

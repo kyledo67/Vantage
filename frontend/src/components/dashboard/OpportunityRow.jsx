@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Chevron, PlatformBadge, PositiveValue, Skeleton } from './atoms.jsx'
+import { Chevron, PlaceholderIcon, PlatformBadge, PositiveValue, Skeleton } from './atoms.jsx'
 
 // Column template shared by the header and every row so they stay aligned.
 export const COLUMNS =
@@ -49,8 +49,10 @@ function ExpandedPanel({ detail, status }) {
                 className="min-w-[8.5rem] flex-shrink-0 rounded-lg border border-vantage-border bg-vantage-surface p-3"
               >
                 <div className="flex items-center gap-1.5">
-                  {source.iconUrl && (
+                  {source.iconUrl ? (
                     <img src={source.iconUrl} alt="" className="h-3.5 w-3.5 rounded-sm object-cover" />
+                  ) : (
+                    <PlaceholderIcon name={source.name} className="h-3.5 w-3.5" />
                   )}
                   {source.name && (
                     <span className="truncate text-[11px] text-vantage-textDim">{source.name}</span>
@@ -59,6 +61,12 @@ function ExpandedPanel({ detail, status }) {
                 {source.priceLabel && (
                   <p className="mt-1.5 text-lg font-semibold leading-none text-vantage-text">
                     {source.priceLabel}
+                  </p>
+                )}
+                {source.otherPriceLabel && (
+                  <p className="mt-1 text-[11px] text-vantage-textDim">
+                    {source.otherName && <span className="truncate">{source.otherName} </span>}
+                    <span className="font-medium text-vantage-text">{source.otherPriceLabel}</span>
                   </p>
                 )}
                 {source.subLabel && (
@@ -127,8 +135,12 @@ export default function OpportunityRow({
 
   return (
     <div
-      className={`border-b border-vantage-border/60 transition-colors last:border-b-0 ${
-        expanded ? 'bg-vantage-raised' : 'hover:bg-vantage-surfaceAlt/60'
+      className={`border-b border-vantage-border/60 transition-colors duration-200 last:border-b-0 ${
+        expanded
+          ? 'bg-vantage-raised'
+          : selected
+            ? 'bg-vantage-accent/10 hover:bg-vantage-accent/15'
+            : 'hover:bg-vantage-surfaceAlt/60'
       }`}
     >
       {/* Desktop row */}
@@ -179,9 +191,15 @@ export default function OpportunityRow({
           <PlatformBadge platform={platform} />
         </div>
 
-        <div role="cell">
+        <div className="min-w-0" role="cell">
           {price?.label && (
             <span className="text-xs font-medium text-vantage-text">{price.label}</span>
+          )}
+          {price?.otherLabel && (
+            <p className="truncate text-[11px] text-vantage-textDim">
+              {price.otherName ? `${price.otherName} ` : ''}
+              {price.otherLabel}
+            </p>
           )}
         </div>
 
@@ -227,6 +245,12 @@ export default function OpportunityRow({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-vantage-textDim">
           <PlatformBadge platform={platform} />
           {price?.label && <span>{price.label}</span>}
+          {price?.otherLabel && (
+            <span>
+              {price.otherName ? `${price.otherName} ` : ''}
+              {price.otherLabel}
+            </span>
+          )}
           {hitChance && <span>Est. hit {hitChance}</span>}
         </div>
       </button>
