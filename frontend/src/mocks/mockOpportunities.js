@@ -1,0 +1,73 @@
+// Placeholder data shaped like the eventual GET /api/opportunities response.
+// Replace with live data once the Django backend + refresh job are wired up.
+
+export const mockOpportunities = [
+  {
+    id: 'kalshi-judge-tb-1.5',
+    platform: 'kalshi',
+    sport: 'mlb',
+    league: 'MLB',
+    marketType: 'player_prop',
+    event: 'NYY @ BOS',
+    title: 'Aaron Judge — Over 1.5 Total Bases',
+    resolutionCriteria:
+      'Resolves YES if Aaron Judge records more than 1.5 total bases in the game.',
+    side: 'yes',
+    executablePriceDecimal: 0.42,
+    fairProbability: 0.49,
+    priceAdvantageDecimal: 0.05,
+    estimatedRoi: 0.119,
+    confidence: 'high',
+    contributingBooks: ['Pinnacle', 'FanDuel', 'DraftKings'],
+    quoteUpdatedAt: new Date(Date.now() - 18_000).toISOString(),
+    liquidity: 'good',
+    spread: 0.02,
+    explanation:
+      'Kalshi currently prices this outcome at 42%. Matching sportsbook markets imply about a 49% chance after removing bookmaker margin. This analysis includes a cost allowance and applies only while this price remains available.',
+  },
+  {
+    id: 'poly-lakers-ml',
+    platform: 'polymarket',
+    sport: 'nba',
+    league: 'NBA',
+    marketType: 'game_market',
+    event: 'LAL @ DEN',
+    title: 'Lakers Moneyline — Win',
+    resolutionCriteria: 'Resolves YES if the Lakers win the game in regulation or overtime.',
+    side: 'yes',
+    executablePriceDecimal: 0.38,
+    fairProbability: 0.44,
+    priceAdvantageDecimal: 0.06,
+    estimatedRoi: 0.158,
+    confidence: 'medium',
+    contributingBooks: ['FanDuel', 'DraftKings', 'BetMGM'],
+    quoteUpdatedAt: new Date(Date.now() - 42_000).toISOString(),
+    liquidity: 'moderate',
+    spread: 0.04,
+    explanation:
+      'Polymarket currently prices this outcome at 38%. A weighted consensus of major sportsbooks implies about 44% after removing margin. Pinnacle was not available for this market.',
+  },
+  {
+    id: 'kalshi-mahomes-pass-tds',
+    platform: 'kalshi',
+    sport: 'nfl',
+    league: 'NFL',
+    marketType: 'player_prop',
+    event: 'KC @ BUF',
+    title: 'Patrick Mahomes — Over 1.5 Passing Touchdowns',
+    resolutionCriteria:
+      'Resolves YES if Patrick Mahomes throws more than 1.5 passing touchdowns in the game.',
+    side: 'yes',
+    executablePriceDecimal: 0.55,
+    fairProbability: 0.6,
+    priceAdvantageDecimal: 0.05,
+    estimatedRoi: 0.091,
+    confidence: 'high',
+    contributingBooks: ['Pinnacle', 'FanDuel', 'Caesars'],
+    quoteUpdatedAt: new Date(Date.now() - 9_000).toISOString(),
+    liquidity: 'good',
+    spread: 0.01,
+    explanation:
+      'Kalshi currently prices this outcome at 55%. Matching sportsbook markets imply about 60% after removing bookmaker margin, based on Pinnacle and two consensus books.',
+  },
+]
