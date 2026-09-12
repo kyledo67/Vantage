@@ -21,12 +21,23 @@ class UserProfile(models.Model):
     # Match this value to the authenticated Supabase user's UUID when creating a profile.
     uid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     persona_inquiry_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    persona_event_created_at = models.DateTimeField(null=True, blank=True)
     verification_status = models.CharField(
         max_length=20,
         choices=VerificationStatus.choices,
         default=VerificationStatus.NOT_STARTED,
     )
     is_age_verified = models.BooleanField(default=False)
+    residence_country_code = models.CharField(
+        max_length=2,
+        blank=True,
+        help_text="Persona-verified ISO 3166-1 alpha-2 country of residence.",
+    )
+    residence_subdivision = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text="Persona-verified state, province, or region of residence.",
+    )
     markets = models.CharField(
         max_length=20,
         choices=MarketChoice.choices,
@@ -54,3 +65,7 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return str(self.uid)
+
+    @property
+    def has_verified_residence(self):
+        return self.is_age_verified and bool(self.residence_country_code)

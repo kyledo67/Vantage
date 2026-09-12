@@ -1,3 +1,7 @@
+import hashlib
+import hmac
+import json
+import time
 from unittest.mock import Mock, patch
 from uuid import UUID
 from datetime import datetime
@@ -6,6 +10,7 @@ from django.core.cache import cache
 from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
 
+from .eligibility import evaluate_platform_eligibility
 from .models import UserProfile
 from .clients import KalshiAPIClient, ParlayAPIClient, PolymarketAPIClient
 from .opportunities import (
@@ -13,11 +18,69 @@ from .opportunities import (
     build_game_opportunities,
     build_prop_opportunities,
 )
+from .persona import PersonaInquirySession, verify_persona_signature
+from .serializers import UserProfileSerializer
 from .target_markets import (
     merge_direct_targets,
     normalize_kalshi_events,
     normalize_polymarket_events,
 )
+
+
+class PlatformEligibilityTests(TestCase):
+    def test_us_resident_passes_kalshi_but_not_polymarket_dot_com(self):
+        decisions = evaluate_platform_eligibility(
+            is_age_verified=True,
+            residence_country_code="US",
+        )
+
+        self.assertTrue(decisions["kalshi"].eligible)
+        self.assertFalse(decisions["polymarket"].eligible)
+
+    def test_restricted_country_fails_both_platform_checks(self):
+        decisions = evaluate_platform_eligibility(
+            is_age_verified=True,
+            residence_country_code="AU",
+        )
+
+        self.assertFalse(decisions["kalshi"].eligible)
+        self.assertFalse(decisions["polymarket"].eligible)
+
+    def test_polymarket_requires_region_for_partially_restricted_country(self):
+        missing_region = evaluate_platform_eligibility(
+            is_age_verified=True,
+            residence_country_code="CA",
+        )
+        allowed_region = evaluate_platform_eligibility(
+            is_age_verified=True,
+            residence_country_code="CA",
+            residence_subdivision="Manitoba",
+        )
+        restricted_region = evaluate_platform_eligibility(
+            is_age_verified=True,
+            residence_country_code="CA",
+            residence_subdivision="Ontario",
+        )
+
+        self.assertEqual(
+            missing_region["polymarket"].status,
+            "region_verification_required",
+        )
+        self.assertTrue(allowed_region["polymarket"].eligible)
+        self.assertFalse(restricted_region["polymarket"].eligible)
+
+    def test_age_and_country_are_both_required(self):
+        underage = evaluate_platform_eligibility(
+            is_age_verified=False,
+            residence_country_code="US",
+        )
+        missing_country = evaluate_platform_eligibility(
+            is_age_verified=True,
+            residence_country_code="",
+        )
+
+        self.assertFalse(underage["kalshi"].eligible)
+        self.assertFalse(missing_country["kalshi"].eligible)
 
 
 @override_settings(
@@ -765,3 +828,205 @@ class OpportunityEndpointTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.data["categories"])
         self.assertEqual(response.data["filters"][0]["id"], "platform")
+
+
+@override_settings(
+    SUPABASE_URL="https://example.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY="test-publishable-key",
+)
+class SettingsEndpointTests(APITestCase):
+    uid = UUID("22222222-2222-2222-2222-222222222222")
+    url = "/api/settings/"
+
+    def setUp(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"id": str(self.uid), "email": "user@example.com"}
+        self.auth_request = patch(
+            "market_data.authentication.requests.get", return_value=response
+        )
+        self.auth_request.start()
+        self.addCleanup(self.auth_request.stop)
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer valid-access-token")
+
+    def test_get_creates_profile_and_returns_authenticated_account(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(UserProfile.objects.filter(uid=self.uid).exists())
+        account = response.data["sections"][0]
+        self.assertEqual(account["fields"][0]["value"], "user@example.com")
+
+    def test_patch_updates_only_supported_profile_setting(self):
+        response = self.client.patch(
+            self.url,
+            {"fieldId": "bankroll", "value": "750.00"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(UserProfile.objects.get(uid=self.uid).bankroll, 750)
+
+        read_only = self.client.patch(
+            self.url,
+            {"fieldId": "is_age_verified", "value": True},
+            format="json",
+        )
+        self.assertEqual(read_only.status_code, 400)
+        self.assertFalse(UserProfile.objects.get(uid=self.uid).is_age_verified)
+
+    def test_authentication_is_required(self):
+        self.client.credentials()
+        self.assertEqual(self.client.get(self.url).status_code, 401)
+
+
+@override_settings(
+    SUPABASE_URL="https://example.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY="test-publishable-key",
+    PERSONA_INQUIRY_TEMPLATE_ID="itmpl_test",
+)
+class PersonaInquiryEndpointTests(APITestCase):
+    uid = UUID("33333333-3333-3333-3333-333333333333")
+
+    def setUp(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"id": str(self.uid), "email": "user@example.com"}
+        self.auth_request = patch(
+            "market_data.authentication.requests.get", return_value=response
+        )
+        self.auth_request.start()
+        self.addCleanup(self.auth_request.stop)
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer valid-access-token")
+
+    @patch("market_data.views.persona_client.get_or_create_inquiry")
+    def test_inquiry_is_linked_to_authenticated_user(self, get_or_create):
+        get_or_create.return_value = PersonaInquirySession(
+            inquiry_id="inq_test",
+            status="created",
+            environment_id="env_test",
+        )
+
+        response = self.client.post("/api/persona/inquiries/", {}, format="json")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["inquiryId"], "inq_test")
+        self.assertTrue(response.data["launchable"])
+        get_or_create.assert_called_once_with(self.uid, None)
+        profile = UserProfile.objects.get(uid=self.uid)
+        self.assertEqual(profile.persona_inquiry_id, "inq_test")
+        self.assertEqual(profile.verification_status, "pending")
+
+
+@override_settings(
+    PERSONA_WEBHOOK_SECRET="webhook-secret",
+    PERSONA_INQUIRY_TEMPLATE_ID="itmpl_test",
+)
+class PersonaWebhookTests(APITestCase):
+    uid = UUID("44444444-4444-4444-4444-444444444444")
+
+    def signed_request(self, payload, secret="webhook-secret"):
+        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+        timestamp = str(int(time.time()))
+        digest = hmac.new(
+            secret.encode("utf-8"),
+            timestamp.encode("utf-8") + b"." + body,
+            hashlib.sha256,
+        ).hexdigest()
+        return self.client.post(
+            "/api/persona/webhook/",
+            data=body,
+            content_type="application/json",
+            HTTP_PERSONA_SIGNATURE=f"t={timestamp},v1={digest}",
+        )
+
+    def payload(self, status="approved", country="US", subdivision="Texas"):
+        fields = {}
+        if country:
+            fields["address-country-code"] = {
+                "type": "string",
+                "value": country,
+            }
+        if subdivision:
+            fields["address-subdivision"] = {
+                "type": "string",
+                "value": subdivision,
+            }
+        return {
+            "data": {
+                "type": "event",
+                "id": "evt_test",
+                "attributes": {
+                    "name": f"inquiry.{status}",
+                    "created-at": "2026-09-12T10:00:00Z",
+                    "payload": {
+                        "data": {
+                            "type": "inquiry",
+                            "id": "inq_test",
+                            "attributes": {
+                                "status": status,
+                                "reference-id": str(self.uid),
+                                "fields": fields,
+                            },
+                            "relationships": {
+                                "inquiry-template": {
+                                    "data": {
+                                        "id": "itmpl_test",
+                                        "type": "inquiry-template",
+                                    }
+                                }
+                            },
+                        }
+                    },
+                },
+            }
+        }
+
+    def test_approved_webhook_marks_matching_profile_verified(self):
+        UserProfile.objects.create(uid=self.uid, persona_inquiry_id="inq_test")
+
+        response = self.signed_request(self.payload())
+
+        self.assertEqual(response.status_code, 200)
+        profile = UserProfile.objects.get(uid=self.uid)
+        self.assertTrue(profile.is_age_verified)
+        self.assertEqual(profile.verification_status, "verified")
+        self.assertEqual(profile.residence_country_code, "US")
+        self.assertEqual(profile.residence_subdivision, "TEXAS")
+
+        serialized = UserProfileSerializer(profile).data
+        self.assertTrue(serialized["eligibility"]["platforms"]["kalshi"]["eligible"])
+        self.assertFalse(
+            serialized["eligibility"]["platforms"]["polymarket"]["eligible"]
+        )
+
+    def test_approved_webhook_without_country_does_not_grant_market_access(self):
+        UserProfile.objects.create(uid=self.uid, persona_inquiry_id="inq_test")
+
+        response = self.signed_request(self.payload(country="", subdivision=""))
+
+        self.assertEqual(response.status_code, 200)
+        profile = UserProfile.objects.get(uid=self.uid)
+        self.assertTrue(profile.is_age_verified)
+        self.assertFalse(profile.has_verified_residence)
+        self.assertFalse(UserProfileSerializer(profile).data["eligibility"]["is_eligible"])
+
+    def test_invalid_signature_is_rejected(self):
+        response = self.signed_request(self.payload(), secret="wrong-secret")
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_expired_signature_is_rejected(self):
+        body = b"{}"
+        old_timestamp = str(int(time.time()) - 301)
+        digest = hmac.new(
+            b"webhook-secret",
+            old_timestamp.encode("utf-8") + b"." + body,
+            hashlib.sha256,
+        ).hexdigest()
+
+        self.assertFalse(
+            verify_persona_signature(
+                body,
+                f"t={old_timestamp},v1={digest}",
+                "webhook-secret",
+            )
+        )

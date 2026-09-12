@@ -1,68 +1,118 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-
-/**
- * Client-side session state.
- *
- * ⚠️ This is NOT security. It gates the UI only — anyone can grant themselves
- * access by editing localStorage. Every protected resource must ALSO be
- * enforced server-side once the Django/Supabase Auth backend exists.
- *
- * The `login` / `logout` signatures are what Supabase Auth will expose, so
- * swapping the mock for the real client should stay contained to this file.
- */
-
-const STORAGE_KEY = 'vantage.auth.session'
+import { requireSupabase, supabase } from '../lib/supabase.js'
 
 const AuthContext = createContext(null)
 
-function readStoredSession() {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    // Private mode / blocked storage — treat as signed out rather than crashing.
-    return null
-  }
-}
-
-function persistSession(session) {
-  try {
-    if (session) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session))
-    else window.localStorage.removeItem(STORAGE_KEY)
-  } catch {
-    // Non-fatal: the session just won't survive a reload.
-  }
-}
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
-  // Starts true so guards don't bounce a signed-in user to /login on first paint.
+  const [session, setSession] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [passwordRecovery, setPasswordRecovery] = useState(false)
 
   useEffect(() => {
-    setUser(readStoredSession())
-    setLoading(false)
-  }, [])
-
-  const login = useCallback(async ({ email, provider = 'password' } = {}) => {
-    const session = {
-      email: email || `demo.user@${provider}.example`,
-      provider,
-      signedInAt: new Date().toISOString(),
+    if (!supabase) {
+      setLoading(false)
+      return undefined
     }
-    setUser(session)
-    persistSession(session)
-    return session
+
+    let active = true
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return
+      if (error) console.error('Could not restore Supabase session:', error.message)
+      setSession(data?.session ?? null)
+      setLoading(false)
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return
+      setSession(nextSession)
+      setLoading(false)
+      if (event === 'PASSWORD_RECOVERY') setPasswordRecovery(true)
+      if (event === 'SIGNED_OUT') setPasswordRecovery(false)
+    })
+
+    return () => {
+      active = false
+      subscription.unsubscribe()
+    }
   }, [])
 
-  const logout = useCallback(() => {
-    setUser(null)
-    persistSession(null)
+  const login = useCallback(async ({ email, password, provider, redirectTo } = {}) => {
+    const client = requireSupabase()
+    if (provider) {
+      const callbackUrl = new URL(redirectTo || '/ev-finder', window.location.origin).toString()
+      const { data, error } = await client.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: callbackUrl },
+      })
+      if (error) throw error
+      return { ...data, redirecting: true }
+    }
+
+    const { data, error } = await client.auth.signInWithPassword({ email, password })
+    if (error) throw error
+    return data
+  }, [])
+
+  const signup = useCallback(async ({ email, password } = {}) => {
+    const client = requireSupabase()
+    const emailRedirectTo = new URL('/ev-finder', window.location.origin).toString()
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo },
+    })
+    if (error) throw error
+    return data
+  }, [])
+
+  const resetPassword = useCallback(async (email) => {
+    const client = requireSupabase()
+    const redirectTo = new URL('/login?recovery=1', window.location.origin).toString()
+    const { data, error } = await client.auth.resetPasswordForEmail(email, { redirectTo })
+    if (error) throw error
+    return data
+  }, [])
+
+  const updatePassword = useCallback(async (password) => {
+    const client = requireSupabase()
+    const { data, error } = await client.auth.updateUser({ password })
+    if (error) throw error
+    setPasswordRecovery(false)
+    return data
+  }, [])
+
+  const logout = useCallback(async () => {
+    const client = requireSupabase()
+    const { error } = await client.auth.signOut()
+    if (error) throw error
   }, [])
 
   const value = useMemo(
-    () => ({ user, isAuthenticated: Boolean(user), loading, login, logout }),
-    [user, loading, login, logout]
+    () => ({
+      user: session?.user ?? null,
+      session,
+      accessToken: session?.access_token ?? null,
+      isAuthenticated: Boolean(session?.user),
+      loading,
+      passwordRecovery,
+      login,
+      signup,
+      resetPassword,
+      updatePassword,
+      logout,
+    }),
+    [
+      session,
+      loading,
+      passwordRecovery,
+      login,
+      signup,
+      resetPassword,
+      updatePassword,
+      logout,
+    ]
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
