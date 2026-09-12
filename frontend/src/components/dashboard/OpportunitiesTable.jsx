@@ -1,7 +1,7 @@
 import { Skeleton } from './atoms.jsx'
 import OpportunityRow, { COLUMNS } from './OpportunityRow.jsx'
 
-const HEADINGS = ['Event / Selection', 'Market', 'Platform', 'Price', 'Consensus', 'EV']
+const HEADINGS = ['Event / Selection', 'Market', 'Platform', 'Price', 'Est. hit', 'EV']
 
 function TableHeader() {
   return (

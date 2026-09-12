@@ -40,7 +40,7 @@ function ExpandedPanel({ detail, status }) {
       {sources?.length > 0 && (
         <div>
           <p className="mb-2 text-[10px] uppercase tracking-wide text-vantage-alert">
-            Reference prices
+            Market prices
           </p>
           <div className="no-scrollbar flex gap-2 overflow-x-auto">
             {sources.map((source) => (
@@ -130,7 +130,8 @@ export default function OpportunityRow({
   selected,
   onSelect,
 }) {
-  const { selection, market, platform, price, consensus, ev } = opportunity
+  const { selection, market, platform, price, consensus, ev, evaluation } = opportunity
+  const hitChance = evaluation?.hitProbabilityLabel || consensus?.label
 
   return (
     <div
@@ -203,8 +204,8 @@ export default function OpportunityRow({
         </div>
 
         <div role="cell">
-          {consensus?.label && (
-            <span className="text-xs text-vantage-text">{consensus.label}</span>
+          {hitChance && (
+            <span className="text-xs text-vantage-text">{hitChance}</span>
           )}
         </div>
 
@@ -250,7 +251,7 @@ export default function OpportunityRow({
               {price.otherLabel}
             </span>
           )}
-          {consensus?.label && <span>Consensus {consensus.label}</span>}
+          {hitChance && <span>Est. hit {hitChance}</span>}
         </div>
       </button>
 
