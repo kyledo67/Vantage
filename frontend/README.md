@@ -10,9 +10,17 @@ npm install
 npm run dev
 ```
 
-The app runs standalone against mock data (`src/mocks/`) by default, so it's fully demoable
-without the Django backend. Set `VITE_USE_MOCKS=false` in `.env` once the backend endpoints
-below are live.
+Copy `.env.example` to `.env`. Set `VITE_USE_MOCKS=false`, and provide the Supabase
+project URL and publishable key. Vite proxies `/api` to Django at
+`http://localhost:8000` during local development.
+
+Set `VITE_SUPABASE_GOOGLE_ENABLED=true` or
+`VITE_SUPABASE_APPLE_ENABLED=true` only after enabling that provider and its redirect
+URLs in Supabase. Disabled providers are hidden from the login form.
+
+Supabase Auth handles password sign-in, signup, recovery, OAuth, persisted sessions,
+and token refresh. The shared API client attaches the current access token to Django
+requests. Private provider keys remain in `backend/.env`.
 
 ## Structure
 
@@ -32,18 +40,20 @@ src/
   utils/            Formatting helpers and shared constants
 ```
 
-## Backend contract (not yet implemented)
+## Implemented backend contract
 
 The frontend expects a Django REST API at `/api` (proxied in dev via `vite.config.js`):
 
-- `GET /api/opportunities`
-- `GET /api/opportunities/{id}`
-- `GET /api/sports`
-- `POST /api/analyze/straight`
-- `POST /api/analyze/portfolio`
-- `POST /api/watchlist`
-- `GET /api/market-health`
-- `GET /api/data-freshness`
+- `GET /api/opportunities/`
+- `GET /api/opportunities/{id}/detail/`
+- `GET /api/filters/`
+- `GET`, `POST`, `PATCH /api/profile/`
+- `GET`, `PATCH /api/settings/`
+- `POST /api/persona/inquiries/`
+
+The remaining service modules contain placeholders for later watchlist, alert,
+history, parlay, and general-market endpoints. See `backend/docs/API.md` for the
+current request and response schemas.
 
 The frontend never calls ParlayAPI, Kalshi, Polymarket, or Gemini directly — only our own
 backend, which serves cached/normalized data.

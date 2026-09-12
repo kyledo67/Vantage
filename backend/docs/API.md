@@ -10,14 +10,16 @@ configured but not implemented yet.
 http://127.0.0.1:8000/api
 ```
 
-React should call only these Django endpoints. API keys for ParlayAPI, Persona, and
-other providers must remain in `backend/.env` and must never be sent to the browser.
+React calls only these Django endpoints for application data. API keys for ParlayAPI,
+Persona, and other private providers remain in `backend/.env`. Supabase's publishable
+key is also placed in the ignored `frontend/.env`, because it is designed for browser
+clients; Supabase access controls still depend on the user's session and server rules.
 
 All request and response bodies use JSON unless stated otherwise.
 
 ## Authentication
 
-`/profile/` requires a Supabase access token:
+`/profile/`, `/settings/`, and `/persona/inquiries/` require a Supabase access token:
 
 ```http
 Authorization: Bearer <supabase-access-token>
@@ -26,9 +28,13 @@ Authorization: Bearer <supabase-access-token>
 Django validates the token by calling Supabase Auth's `/auth/v1/user` endpoint with
 the configured Supabase publishable key. The returned Supabase user UUID becomes the
 profile `uid`. A client cannot select another user's UID in the request body or URL.
+The `user_profiles` table has Postgres row-level security enabled with no direct client
+policy; profile access goes through these authenticated Django routes.
 
-The health, opportunity, opportunity-detail, and filter endpoints currently contain
-public market information and do not require authentication.
+React obtains and refreshes this token through Supabase Auth and attaches it to Django
+requests automatically. The health, opportunity, opportunity-detail, filter, and
+Persona webhook endpoints do not require a user session. Persona webhook requests use
+their own HMAC signature instead.
 
 ## Health
 
@@ -49,6 +55,7 @@ None.
   "integrations": {
     "nessie": false,
     "persona": true,
+    "persona_webhook": false,
     "parlay_api": true,
     "kalshi": true,
     "polymarket": true,
@@ -61,6 +68,7 @@ None.
 | --- | --- |
 | `integrations.nessie` | `true` when `NESSIE_API_KEY` has a value. |
 | `integrations.persona` | `true` when both the Persona API key and template ID have values. |
+| `integrations.persona_webhook` | `true` when the Persona webhook signing secret has a value. |
 | `integrations.parlay_api` | `true` when `PARLAY_API_KEY` has a value. |
 | `integrations.kalshi` | `true` when the public Kalshi base URL is configured. |
 | `integrations.polymarket` | `true` when the public Polymarket Gamma base URL is configured. |
@@ -69,7 +77,7 @@ None.
 ## Current user profile
 
 The profile stores user-selected prediction-market preferences and risk settings.
-Persona controls age-verification fields. The API does not expose a user's exact age
+Persona controls age and residence-verification fields. The API does not expose a user's exact age
 or date of birth.
 
 ### `POST /api/profile/`
@@ -108,6 +116,26 @@ The API ignores client attempts to set `uid`, `is_age_verified`, or
 {
   "uid": "11111111-1111-1111-1111-111111111111",
   "is_age_verified": false,
+  "residence_country_code": "",
+  "residence_subdivision": "",
+  "eligibility": {
+    "is_eligible": false,
+    "is_residence_verified": false,
+    "eligible_markets": [],
+    "platforms": {
+      "kalshi": {
+        "eligible": false,
+        "status": "verification_required",
+        "reason": "Complete Persona identity and 18+ verification first."
+      },
+      "polymarket": {
+        "eligible": false,
+        "status": "verification_required",
+        "reason": "Complete Persona identity and 18+ verification first."
+      }
+    },
+    "policy_checked_on": "2026-09-12"
+  },
   "verification_status": "not_started",
   "markets": "both",
   "bankroll": "500.00",
@@ -127,7 +155,8 @@ The API ignores client attempts to set `uid`, `is_age_verified`, or
 
 ### `GET /api/profile/`
 
-Returns the authenticated user's profile.
+Returns the authenticated user's profile. If this is the user's first authenticated
+request, Django creates the profile with safe defaults before returning it.
 
 #### Inputs
 
@@ -142,7 +171,6 @@ The response has the same shape as the `POST /api/profile/` response.
 | Status | Meaning |
 | --- | --- |
 | `401 Unauthorized` | The Supabase token is missing, invalid, or expired. |
-| `404 Not Found` | The authenticated user has not created a profile. |
 
 ### `PATCH /api/profile/`
 
@@ -171,7 +199,76 @@ Returns the complete updated profile.
 | --- | --- |
 | `400 Bad Request` | An editable field contains an invalid value. |
 | `401 Unauthorized` | The Supabase token is missing, invalid, or expired. |
-| `404 Not Found` | The authenticated user has not created a profile. |
+
+## Settings
+
+### `GET /api/settings/`
+
+Returns the authenticated user's account, verification state, prediction-market
+selection, bankroll, and maximum-position preference in the section/field structure
+consumed by the React Settings page. The profile is created automatically when absent.
+
+The email comes from the verified Supabase session. Persona controls
+`verification_status`, `is_age_verified`, `residence_country_code`, and
+`residence_subdivision`; all are read-only. The response also gives separate Kalshi
+and Polymarket.com eligibility pre-screens. These combine Persona approval with the
+current platform residence rules and do not replace either platform's own onboarding
+or live physical-location checks.
+
+### `PATCH /api/settings/`
+
+Updates one editable setting.
+
+```json
+{
+  "fieldId": "bankroll",
+  "value": "750.00"
+}
+```
+
+Accepted `fieldId` values are `markets`, `bankroll`, and
+`max_position_percent`. The response contains the complete updated `sections` object.
+Attempts to update email or verification fields return `400 Bad Request`.
+
+## Persona verification
+
+### `POST /api/persona/inquiries/`
+
+Gets or creates an inquiry for the authenticated Supabase UUID. If an existing inquiry
+is pending, Django asks Persona for a short-lived resume token. The React app passes the
+returned values into Persona's embedded web SDK.
+
+```json
+{
+  "inquiryId": "inq_example",
+  "sessionToken": null,
+  "environmentId": "env_example",
+  "status": "created",
+  "verified": false,
+  "launchable": true
+}
+```
+
+The API never accepts a user ID or Persona inquiry ID from the browser. It derives the
+user from the Supabase bearer token and stores the inquiry association server side.
+
+### `POST /api/persona/webhook/`
+
+Receives Persona inquiry lifecycle events. This route does not use Supabase Auth. It
+requires a valid `Persona-Signature` HMAC computed with `PERSONA_WEBHOOK_SECRET`, rejects
+signatures older than five minutes, ignores duplicate/out-of-order events, and accepts
+verification only for the configured inquiry template.
+
+Only an `approved` Persona inquiry sets `is_age_verified=true`. Market eligibility also
+requires the approved inquiry to contain `fields.address-country-code`; countries with
+region-level Polymarket restrictions also require `fields.address-subdivision`.
+Completed and review states remain pending; declined, failed, and expired states remain
+unverified. The backend stores only the normalized residence country/region needed for
+the pre-screen, not the user's birthdate, street address, or identity document.
+
+The country lists are checked in `market_data/eligibility.py`. They reflect Kalshi's
+June 17, 2026 Member Agreement and Polymarket.com's geographic-restrictions page as of
+September 12, 2026. They must be reviewed when either platform changes its rules.
 
 ## +EV opportunity finder
 
@@ -573,7 +670,7 @@ catalog. Bodog is not exposed as a separate source either, so only the available
 
 Documentation: <https://parlay-api.com/docs>
 
-### Supabase Auth — implemented for profile routes
+### Supabase Auth — implemented
 
 Current call:
 
@@ -582,6 +679,9 @@ GET {SUPABASE_URL}/auth/v1/user
 ```
 
 The backend forwards the user's bearer access token and the Supabase publishable key.
+The frontend supports password sign-in, account creation, email confirmation, password
+recovery, Google/Apple OAuth redirects, persisted sessions, automatic token refresh,
+and sign-out. OAuth providers and redirect URLs must be enabled in the Supabase project.
 
 Documentation: <https://supabase.com/docs/guides/auth/jwts>
 
@@ -628,7 +728,7 @@ credentials are collected.
 
 Documentation: <https://docs.polymarket.com/market-data/overview>
 
-### Persona — configuration and database fields only
+### Persona — implemented
 
 Configured base URL:
 
@@ -636,8 +736,11 @@ Configured base URL:
 https://api.withpersona.com/api/v1
 ```
 
-The user profile table has `persona_inquiry_id`, `verification_status`, and
-`is_age_verified`. Inquiry creation and webhook endpoints have not been implemented.
+The backend pre-creates or resumes an inquiry linked to the authenticated Supabase UUID.
+The frontend opens Persona's embedded flow using only the inquiry ID, environment ID,
+and short-lived resume token returned by Django. Signed webhooks update the user profile;
+the frontend also performs a short status sync after the embedded flow completes, which
+keeps the sandbox demo usable when a local webhook URL is not publicly reachable.
 
 ### Capital One Nessie — waiting on provider access
 
@@ -662,6 +765,10 @@ POLYMARKET_CLOB_API_BASE_URL
 PERSONA_API_KEY
 PERSONA_INQUIRY_TEMPLATE_ID
 PERSONA_API_BASE_URL
+PERSONA_API_VERSION
+PERSONA_ENVIRONMENT_ID
+PERSONA_WEBHOOK_SECRET
+PERSONA_REQUEST_TIMEOUT_SECONDS
 NESSIE_API_KEY
 NESSIE_API_BASE_URL
 CORS_ALLOWED_ORIGINS
@@ -695,5 +802,5 @@ GET /api/markets/
 GET /api/markets/{id}/
 ```
 
-Watchlists, alerts, history, parlays, Persona inquiry/webhook processing, and Gemini
-explanations also do not have backend endpoints yet.
+Watchlists, alerts, history, parlays, and Gemini explanations also do not have backend
+endpoints yet.

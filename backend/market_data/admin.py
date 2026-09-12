@@ -9,11 +9,17 @@ class UserProfileAdmin(admin.ModelAdmin):
         "uid",
         "verification_status",
         "is_age_verified",
+        "residence_country_code",
         "markets",
         "bankroll",
         "updated_at",
     )
-    list_filter = ("verification_status", "is_age_verified", "markets")
+    list_filter = (
+        "verification_status",
+        "is_age_verified",
+        "residence_country_code",
+        "markets",
+    )
     search_fields = ("uid", "persona_inquiry_id")
 
 # Register your models here.

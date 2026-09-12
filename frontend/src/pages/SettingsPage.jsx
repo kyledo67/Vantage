@@ -1,74 +1,10 @@
-import { useCallback, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useCallback, useEffect, useState } from 'react'
 import { useAsync } from '../hooks/useAsync.js'
 import { getSettings, updateSetting } from '../services/dashboard.js'
 import { Skeleton } from '../components/dashboard/atoms.jsx'
 import { Panel, PanelEmpty, PanelError, SectionHeader } from '../components/dashboard/states.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { useVerification } from '../context/VerificationContext.jsx'
-import { VERIFICATION_STATUS } from '../services/verification.js'
-
-const VERIFICATION_LABEL = {
-  [VERIFICATION_STATUS.VERIFIED]: 'Verified',
-  [VERIFICATION_STATUS.PENDING]: 'Pending',
-  [VERIFICATION_STATUS.NOT_STARTED]: 'Required',
-  [VERIFICATION_STATUS.DECLINED]: 'Declined',
-}
-
-/** Only ever green when the backend itself reports "verified" — every other
- *  state, including a failed status fetch, reads as neutral text. */
-function VerificationSection() {
-  const { status, country } = useVerification()
-  const isVerified = status === VERIFICATION_STATUS.VERIFIED
-  const label = status === 'error' ? 'Unavailable' : (VERIFICATION_LABEL[status] ?? 'Unavailable')
-
-  return (
-    <section className="flex flex-col gap-2.5">
-      <h2 className="text-lg font-semibold text-vantage-text">Verification</h2>
-      <Panel className="p-6">
-        <dl className="flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-base text-vantage-text">Status</dt>
-            <dd
-              className={`flex items-center gap-2 text-base font-medium ${
-                isVerified ? 'text-vantage-positive' : 'text-vantage-textDim'
-              }`}
-            >
-              <span
-                aria-hidden="true"
-                className={`h-2 w-2 rounded-full ${isVerified ? 'bg-vantage-positive' : 'bg-vantage-borderLight'}`}
-              />
-              {label}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <dt className="text-base text-vantage-text">Country</dt>
-            {/* Only ever a country the backend itself confirmed — never the
-                locally-selected one from onboarding, since that's not a
-                backend-verified fact (see VerificationContext). */}
-            <dd className="text-base text-vantage-textDim">
-              {country ? `${country.flag} ${country.name}` : 'Not confirmed'}
-            </dd>
-          </div>
-        </dl>
-        {!isVerified && status !== 'error' && (
-          <Link
-            to={
-              status === VERIFICATION_STATUS.PENDING
-                ? '/verify/pending'
-                : status === VERIFICATION_STATUS.DECLINED
-                  ? '/verify/declined'
-                  : '/verify'
-            }
-            className="mt-5 flex min-h-[48px] w-fit items-center rounded-full bg-vantage-accent px-6 text-sm font-semibold text-vantage-ctaText transition-opacity hover:opacity-90"
-          >
-            {status === VERIFICATION_STATUS.PENDING ? 'Check status' : 'Start verification'}
-          </Link>
-        )}
-      </Panel>
-    </section>
-  )
-}
+import { openPersonaVerification } from '../services/persona.js'
 
 const controlClass =
   'h-14 rounded-lg border border-vantage-border bg-vantage-surfaceAlt px-5 text-base text-vantage-text focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent'
@@ -77,6 +13,10 @@ const controlClass =
  *  can be added server-side without touching this file. */
 function SettingField({ field, onChange, saving }) {
   const [value, setValue] = useState(field.value ?? '')
+
+  useEffect(() => {
+    setValue(field.value ?? '')
+  }, [field.value])
 
   const commit = (next) => {
     setValue(next)
@@ -144,7 +84,8 @@ function SettingField({ field, onChange, saving }) {
           <button
             type="button"
             onClick={() => onChange(field.id, true)}
-            className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-5 text-sm font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent"
+            disabled={saving}
+            className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-5 text-sm font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent disabled:cursor-wait disabled:opacity-60"
           >
             {field.actionLabel || 'Manage'}
           </button>
@@ -159,18 +100,33 @@ export default function SettingsPage() {
   const { logout } = useAuth()
   const [savingId, setSavingId] = useState(null)
   const [saveError, setSaveError] = useState(null)
+  const [saveMessage, setSaveMessage] = useState(null)
 
   const handleChange = useCallback(async (fieldId, value) => {
     setSavingId(fieldId)
     setSaveError(null)
+    setSaveMessage(null)
     try {
-      await updateSetting(fieldId, value)
+      if (fieldId === 'persona_verification') {
+        const result = await openPersonaVerification()
+        if (!result.cancelled) {
+          setSaveMessage(
+            result.verified
+              ? 'Verification approved.'
+              : 'Verification submitted. Persona is processing the result.'
+          )
+        }
+        await settings.refetch()
+      } else {
+        await updateSetting(fieldId, value)
+        setSaveMessage('Setting saved.')
+      }
     } catch (err) {
       setSaveError(err?.message || 'That change could not be saved.')
     } finally {
       setSavingId(null)
     }
-  }, [])
+  }, [settings])
 
   const sections = settings.data?.sections ?? []
 
@@ -178,11 +134,14 @@ export default function SettingsPage() {
     <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
       <SectionHeader title="Settings" description="Your account, notifications, and preferences." />
 
-      <VerificationSection />
-
       {saveError && (
         <p className="rounded-lg border border-vantage-danger/40 bg-vantage-danger/10 px-5 py-4 text-sm text-vantage-text">
           {saveError}
+        </p>
+      )}
+      {saveMessage && (
+        <p className="rounded-lg border border-vantage-positive/40 bg-vantage-positive/10 px-5 py-4 text-sm text-vantage-text">
+          {saveMessage}
         </p>
       )}
 
@@ -261,7 +220,7 @@ export default function SettingsPage() {
           <p className="text-base text-vantage-textDim">Sign out of Vantage on this device.</p>
           <button
             type="button"
-            onClick={logout}
+            onClick={() => logout().catch((err) => setSaveError(err?.message || 'Sign out failed.'))}
             className="flex min-h-[56px] items-center rounded-full border border-vantage-border px-6 text-base font-medium text-vantage-text transition-colors hover:border-vantage-danger hover:text-vantage-danger"
           >
             Sign out
