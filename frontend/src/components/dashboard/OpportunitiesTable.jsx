@@ -1,5 +1,14 @@
+import { useEffect, useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { Skeleton } from './atoms.jsx'
 import OpportunityRow, { COLUMNS } from './OpportunityRow.jsx'
+import { DURATION, EASE, PRESS_BUTTON } from '../../motion/tokens.js'
+
+/** Above this many rows the list is windowed; below it the DOM cost is trivial
+ *  and plain rendering keeps expansion/measurement simpler. */
+const VIRTUALIZE_THRESHOLD = 30
+const ESTIMATED_ROW_HEIGHT = 64
 
 const HEADINGS = ['Event / Selection', 'Market', 'Platform', 'Price', 'Est. hit', 'EV']
 
@@ -63,7 +72,7 @@ function TableSkeleton({ rows = 6 }) {
 function EmptyState({ onRefresh }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-      <svg width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <svg className="animate-icon-in" width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <rect
           x="7"
           y="11"
@@ -89,13 +98,14 @@ function EmptyState({ onRefresh }) {
           New market signals will appear here when they are available.
         </p>
       </div>
-      <button
+      <motion.button
         type="button"
+        whileTap={PRESS_BUTTON}
         onClick={onRefresh}
         className="mt-1 rounded-full border border-vantage-border px-4 py-1.5 text-xs font-medium text-vantage-text transition-colors hover:border-vantage-accent hover:text-vantage-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
       >
         Refresh
-      </button>
+      </motion.button>
     </div>
   )
 }
@@ -103,7 +113,8 @@ function EmptyState({ onRefresh }) {
 function ErrorState({ onRetry, message }) {
   return (
     <div className="flex flex-col items-center gap-3 px-6 py-16 text-center">
-      <svg width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      {/* One gentle pulse on entry, then still — error states never loop. */}
+      <svg className="animate-pulse-once" width="44" height="44" viewBox="0 0 48 48" fill="none" aria-hidden="true">
         <circle cx="24" cy="24" r="15" stroke="#794BD4" strokeWidth="1.4" opacity="0.55" />
         <path d="M24 17v9" stroke="#AAA1B4" strokeWidth="1.6" strokeLinecap="round" />
         <circle cx="24" cy="30.5" r="1.2" fill="#AAA1B4" />
@@ -115,13 +126,49 @@ function ErrorState({ onRetry, message }) {
             'The market data service did not respond. Refresh to request current prices.'}
         </p>
       </div>
-      <button
+      <motion.button
         type="button"
+        whileTap={PRESS_BUTTON}
         onClick={onRetry}
         className="mt-1 rounded-full bg-vantage-accent px-4 py-1.5 text-xs font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
       >
         Try again
-      </button>
+      </motion.button>
+    </div>
+  )
+}
+
+/** Windowed list for large result sets — only visible rows stay in the DOM.
+ *  Heights are measured dynamically so expanded rows are handled correctly. */
+function VirtualRows({ rows, renderRow }) {
+  const scrollRef = useRef(null)
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => ESTIMATED_ROW_HEIGHT,
+    overscan: 8,
+  })
+
+  return (
+    <div ref={scrollRef} className="max-h-[70vh] overflow-y-auto">
+      <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+        {virtualizer.getVirtualItems().map((item) => (
+          <div
+            key={rows[item.index].id}
+            ref={virtualizer.measureElement}
+            data-index={item.index}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              transform: `translateY(${item.start}px)`,
+            }}
+          >
+            {renderRow(rows[item.index])}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
@@ -138,6 +185,27 @@ export default function OpportunitiesTable({
   selectedIds,
   onSelect,
 }) {
+  // Entrance plays once, when valid backend data first arrives — not on every
+  // refetch, and never while loading.
+  const [hasEntered, setHasEntered] = useState(false)
+  useEffect(() => {
+    if (status === 'success' && rows.length > 0 && !hasEntered) setHasEntered(true)
+  }, [status, rows.length, hasEntered])
+
+  const renderRow = (opportunity) => (
+    <OpportunityRow
+      opportunity={opportunity}
+      expanded={expandedId === opportunity.id}
+      onToggle={onToggle}
+      detail={expandedId === opportunity.id ? detail : null}
+      detailStatus={expandedId === opportunity.id ? detailStatus : 'idle'}
+      selected={selectedIds.includes(opportunity.id)}
+      onSelect={onSelect}
+    />
+  )
+
+  const showRows = status === 'success' && rows.length > 0
+
   return (
     <div
       role="table"
@@ -150,20 +218,21 @@ export default function OpportunitiesTable({
       {status === 'error' && <ErrorState onRetry={onRetry} message={error?.message} />}
       {status === 'success' && rows.length === 0 && <EmptyState onRefresh={onRetry} />}
 
-      {status === 'success' &&
-        rows.length > 0 &&
-        rows.map((opportunity) => (
-          <OpportunityRow
-            key={opportunity.id}
-            opportunity={opportunity}
-            expanded={expandedId === opportunity.id}
-            onToggle={onToggle}
-            detail={expandedId === opportunity.id ? detail : null}
-            detailStatus={expandedId === opportunity.id ? detailStatus : 'idle'}
-            selected={selectedIds.includes(opportunity.id)}
-            onSelect={onSelect}
-          />
-        ))}
+      {showRows && (
+        <motion.div
+          initial={hasEntered ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: DURATION.expand, ease: EASE.out }}
+        >
+          {rows.length > VIRTUALIZE_THRESHOLD ? (
+            <VirtualRows rows={rows} renderRow={renderRow} />
+          ) : (
+            rows.map((opportunity) => (
+              <div key={opportunity.id}>{renderRow(opportunity)}</div>
+            ))
+          )}
+        </motion.div>
+      )}
     </div>
   )
 }

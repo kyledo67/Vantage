@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAsync } from '../hooks/useAsync.js'
 import { getMarketDetail } from '../services/dashboard.js'
 import { PositiveValue, Skeleton, StatusIndicator } from '../components/dashboard/atoms.jsx'
@@ -7,8 +7,23 @@ import PriceHistoryChart from '../components/dashboard/PriceHistoryChart.jsx'
 
 export default function MarketDetailPage() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const market = useAsync(() => getMarketDetail(id), [id])
   const data = market.data
+
+  const handleMethodology = () => {
+    navigate('/methodology', {
+      state: {
+        opportunity: {
+          title: data?.title,
+          subtitle: data?.subtitle,
+          price: data?.consensus?.label,
+        },
+        backTo: `/markets/${id}`,
+        backLabel: 'Back to opportunity',
+      },
+    })
+  }
 
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-6">
@@ -50,7 +65,16 @@ export default function MarketDetailPage() {
                 <p className="mt-1 text-sm text-vantage-textDim">{data.subtitle}</p>
               )}
             </div>
-            <StatusIndicator status={data.status} />
+            <div className="flex items-center gap-4">
+              <StatusIndicator status={data.status} />
+              <button
+                type="button"
+                onClick={handleMethodology}
+                className="text-xs font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+              >
+                How this is calculated →
+              </button>
+            </div>
           </header>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.6fr_1fr]">

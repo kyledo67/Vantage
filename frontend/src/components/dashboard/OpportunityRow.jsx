@@ -1,12 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { Chevron, PlaceholderIcon, PlatformBadge, PositiveValue, Skeleton } from './atoms.jsx'
+import ValueFlash from '../../motion/ValueFlash.jsx'
+import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
 
 // Column template shared by the header and every row so they stay aligned.
 export const COLUMNS =
   'grid grid-cols-[1.9fr_1.1fr_0.85fr_0.7fr_0.8fr_0.7fr_28px] items-center gap-3'
 
 /** Detail panel — each block is skipped entirely when its data is absent. */
-function ExpandedPanel({ detail, status }) {
+function ExpandedPanel({ detail, status, onMethodology }) {
   if (status === 'loading' || status === 'idle') {
     return (
       <div className="flex flex-col gap-3 px-4 pb-4" aria-busy="true">
@@ -117,6 +120,16 @@ function ExpandedPanel({ detail, status }) {
           ))}
         </div>
       )}
+
+      {onMethodology && (
+        <button
+          type="button"
+          onClick={onMethodology}
+          className="self-start text-[11px] font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+        >
+          How this is calculated →
+        </button>
+      )}
     </div>
   )
 }
@@ -130,12 +143,31 @@ export default function OpportunityRow({
   selected,
   onSelect,
 }) {
+  const navigate = useNavigate()
   const { selection, market, platform, price, consensus, ev, evaluation } = opportunity
   const hitChance = evaluation?.hitProbabilityLabel || consensus?.label
 
+  const handleMethodology = () => {
+    navigate('/methodology', {
+      state: {
+        opportunity: {
+          title: selection?.title,
+          subtitle: selection?.subtitle,
+          platform: platform?.name,
+          price: price?.label,
+          ev: ev?.label,
+        },
+        backTo: '/ev-finder',
+        backLabel: 'Back to opportunity',
+      },
+    })
+  }
+
   return (
-    <div
-      className={`border-b border-vantage-border/60 transition-colors duration-200 last:border-b-0 ${
+    <motion.div
+      // Press feedback only — rows never animate continuously.
+      whileTap={PRESS_ROW}
+      className={`relative border-b border-vantage-border/60 transition-colors duration-200 last:border-b-0 active:bg-vantage-raised ${
         expanded
           ? 'bg-vantage-raised'
           : selected
@@ -143,6 +175,20 @@ export default function OpportunityRow({
             : 'hover:bg-vantage-surfaceAlt/60'
       }`}
     >
+      {/* 3px accent that wipes in top-to-bottom on the selected row */}
+      <AnimatePresence>
+        {(expanded || selected) && (
+          <motion.span
+            initial={{ scaleY: 0 }}
+            animate={{ scaleY: 1 }}
+            exit={{ scaleY: 0 }}
+            transition={{ duration: DURATION.interaction, ease: EASE.out }}
+            style={{ originY: 0 }}
+            className="absolute inset-y-0 left-0 w-[3px] bg-vantage-accent"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Desktop row */}
       <div className={`${COLUMNS} hidden px-4 py-3 md:grid`} role="row">
         <div className="flex min-w-0 items-center gap-2.5" role="cell">
@@ -191,9 +237,12 @@ export default function OpportunityRow({
           <PlatformBadge platform={platform} />
         </div>
 
+        {/* Cells flash briefly when the backend sends a changed value. */}
         <div className="min-w-0" role="cell">
           {price?.label && (
-            <span className="text-xs font-medium text-vantage-text">{price.label}</span>
+            <ValueFlash value={price.label} className="text-xs font-medium text-vantage-text">
+              {price.label}
+            </ValueFlash>
           )}
           {price?.otherLabel && (
             <p className="truncate text-[11px] text-vantage-textDim">
@@ -205,12 +254,18 @@ export default function OpportunityRow({
 
         <div role="cell">
           {hitChance && (
-            <span className="text-xs text-vantage-text">{hitChance}</span>
+            <ValueFlash value={hitChance} className="text-xs text-vantage-text">
+              {hitChance}
+            </ValueFlash>
           )}
         </div>
 
         <div role="cell">
-          <PositiveValue value={ev} className="text-xs" />
+          {ev?.label && (
+            <ValueFlash value={ev.label} isPositive={ev.isPositive}>
+              <PositiveValue value={ev} className="text-xs" />
+            </ValueFlash>
+          )}
         </div>
 
         <button
@@ -265,13 +320,17 @@ export default function OpportunityRow({
             initial={{ height: 0 }}
             animate={{ height: 'auto' }}
             exit={{ height: 0 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            transition={{ duration: DURATION.expand, ease: EASE.out }}
             className="overflow-hidden"
           >
-            <ExpandedPanel detail={detail} status={detailStatus} />
+            {/* Content fade uses a CSS keyframe whose resting state is visible,
+                so a skipped animation can never leave the panel blank. */}
+            <div className="animate-detail-in">
+              <ExpandedPanel detail={detail} status={detailStatus} onMethodology={handleMethodology} />
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </motion.div>
   )
 }

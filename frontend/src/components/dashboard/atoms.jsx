@@ -50,9 +50,11 @@ export function StatusIndicator({ status }) {
         positive ? 'text-vantage-positive' : 'text-vantage-textDim'
       }`}
     >
+      {/* The dot only pulses when the backend actually confirms a live/positive
+          state — it's never decorative motion. Pauses when the tab is hidden. */}
       <span
         className={`h-1.5 w-1.5 rounded-full ${
-          positive ? 'bg-vantage-positive' : 'bg-vantage-borderLight'
+          positive ? 'animate-live-dot bg-vantage-positive' : 'bg-vantage-borderLight'
         }`}
       />
       {status.label}

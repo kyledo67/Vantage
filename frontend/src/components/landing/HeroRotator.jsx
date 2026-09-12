@@ -23,8 +23,8 @@ export default function HeroRotator() {
   const slide = slides[index]
 
   return (
-    <div className="flex flex-col items-end gap-4">
-      <div className="relative h-[4.5rem] w-full text-right sm:h-24">
+    <div className="flex shrink-0 flex-col items-end gap-4">
+      <div className="relative h-[4.5rem] w-max text-right sm:h-24">
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
@@ -32,7 +32,7 @@ export default function HeroRotator() {
             animate={{ opacity: 1, y: 0 }}
             exit={reduceMotion ? undefined : { opacity: 0, y: -10 }}
             transition={{ duration: 0.4 }}
-            className="absolute inset-0 flex flex-col items-end justify-center"
+            className="absolute inset-0 flex flex-col items-end justify-center whitespace-nowrap"
           >
             <span className="font-display text-lg leading-none text-vantage-textDim sm:text-xl">
               {slide.lead}

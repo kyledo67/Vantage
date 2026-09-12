@@ -1,6 +1,6 @@
-import { Suspense, useMemo } from 'react'
+import { Suspense, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { Canvas } from '@react-three/fiber'
+import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, OrbitControls, Html, RoundedBox, ContactShadows } from '@react-three/drei'
 import { useReducedMotion } from 'framer-motion'
 import ScreenDashboard from './ScreenDashboard.jsx'
@@ -21,8 +21,20 @@ const BASE_W = 3.4
 const BASE_D = 2.3
 const BASE_H = 0.14
 const HINGE_Z = -BASE_D / 2
-const SCREEN_TILT = -0.3 // radians back from vertical
+const SCREEN_TILT = -0.3 // radians back from vertical — resting "open" angle
+const LID_CLOSED_TILT = Math.PI / 2 - 0.04 // folded flat onto the keyboard, just clear of it
+const BASE_Y_ROTATION = 0.24 // resting yaw
 const LID_H = 2.15
+
+// Click-to-spin sequence: close the lid, spin the whole laptop a full turn,
+// then reopen the lid once it's back at its resting yaw.
+const CLOSE_DURATION = 0.5
+const TURN_DURATION = 1.3
+const OPEN_DURATION = 0.55
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2
+}
 
 const DISPLAY_W = 3.04
 const DISPLAY_H = 1.9
@@ -85,9 +97,86 @@ function Keyboard() {
   )
 }
 
-function Laptop() {
+function Laptop({ reduceMotion }) {
+  const groupRef = useRef(null)
+  const lidRef = useRef(null)
+  const phaseRef = useRef('idle') // 'idle' | 'closing' | 'turning' | 'opening'
+  const phaseStartRef = useRef(0)
+  const pointerDownRef = useRef(null)
+  // Screen content is DOM-rendered (Html), so it doesn't get occluded by the
+  // lid geometry as it folds shut — hide it explicitly for the closed/turning
+  // stretch of the sequence and bring it back once the lid is open again.
+  const [screenVisible, setScreenVisible] = useState(true)
+
+  const handlePointerDown = (event) => {
+    pointerDownRef.current = { x: event.clientX, y: event.clientY }
+  }
+
+  const handlePointerUp = (event) => {
+    const down = pointerDownRef.current
+    pointerDownRef.current = null
+    if (!down || phaseRef.current !== 'idle') return
+    // Only treat this as a click, not the tail end of an orbit-drag.
+    const moved = Math.hypot(event.clientX - down.x, event.clientY - down.y)
+    if (moved > 6) return
+
+    if (reduceMotion) return
+
+    phaseRef.current = 'closing'
+    phaseStartRef.current = 0 // initialized on the next frame, against the render clock
+    setScreenVisible(false)
+  }
+
+  useFrame((state) => {
+    const lid = lidRef.current
+    const group = groupRef.current
+    if (!lid || !group) return
+
+    const t = state.clock.elapsedTime
+    const phase = phaseRef.current
+
+    if (phase === 'idle') {
+      lid.rotation.x = SCREEN_TILT
+      group.rotation.y = BASE_Y_ROTATION
+      return
+    }
+
+    if (phaseStartRef.current === 0) phaseStartRef.current = t
+    const elapsed = t - phaseStartRef.current
+
+    if (phase === 'closing') {
+      const p = Math.min(elapsed / CLOSE_DURATION, 1)
+      lid.rotation.x = THREE.MathUtils.lerp(SCREEN_TILT, LID_CLOSED_TILT, easeInOutCubic(p))
+      if (p >= 1) {
+        phaseRef.current = 'turning'
+        phaseStartRef.current = t
+      }
+    } else if (phase === 'turning') {
+      const p = Math.min(elapsed / TURN_DURATION, 1)
+      group.rotation.y = BASE_Y_ROTATION + easeInOutCubic(p) * Math.PI * 2
+      if (p >= 1) {
+        phaseRef.current = 'opening'
+        phaseStartRef.current = t
+      }
+    } else if (phase === 'opening') {
+      const p = Math.min(elapsed / OPEN_DURATION, 1)
+      group.rotation.y = BASE_Y_ROTATION
+      lid.rotation.x = THREE.MathUtils.lerp(LID_CLOSED_TILT, SCREEN_TILT, easeInOutCubic(p))
+      if (p >= 1) {
+        phaseRef.current = 'idle'
+        phaseStartRef.current = 0
+        setScreenVisible(true)
+      }
+    }
+  })
+
   return (
-    <group rotation={[0, 0.24, 0]}>
+    <group
+      ref={groupRef}
+      rotation={[0, BASE_Y_ROTATION, 0]}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+    >
       {/* ── Base ───────────────────────────────────────────────────────────── */}
       <RoundedBox args={[BASE_W, BASE_H, BASE_D]} radius={0.05} smoothness={4} position={[0, -BASE_H / 2, 0]}>
         <meshStandardMaterial color="#1A1A22" roughness={0.42} metalness={0.72} />
@@ -119,7 +208,7 @@ function Laptop() {
       </mesh>
 
       {/* ── Lid ────────────────────────────────────────────────────────────── */}
-      <group position={[0, 0.01, HINGE_Z + 0.04]} rotation={[SCREEN_TILT, 0, 0]}>
+      <group ref={lidRef} position={[0, 0.01, HINGE_Z + 0.04]} rotation={[SCREEN_TILT, 0, 0]}>
         {/* Outer shell */}
         <RoundedBox
           args={[BASE_W, LID_H, 0.09]}
@@ -156,65 +245,72 @@ function Laptop() {
           <meshBasicMaterial color="#09090D" />
         </mesh>
 
-        {/* Dashboard UI, mapped 1:1 onto the display plane */}
-        <Html
-          transform
-          distanceFactor={HTML_DISTANCE}
-          position={[0, LID_H / 2 - 0.03, 0.021]}
-          style={{ pointerEvents: 'none' }}
-          zIndexRange={[10, 0]}
-        >
-          <ScreenDashboard />
-        </Html>
+        {/* Dashboard UI and the floating opportunity card are DOM overlays —
+            pull them out entirely while the lid is closed/turning so they
+            can't float in front of the laptop mid-spin. */}
+        {screenVisible && (
+          <>
+            {/* Dashboard UI, mapped 1:1 onto the display plane */}
+            <Html
+              transform
+              distanceFactor={HTML_DISTANCE}
+              position={[0, LID_H / 2 - 0.03, 0.021]}
+              style={{ pointerEvents: 'none' }}
+              zIndexRange={[10, 0]}
+            >
+              <ScreenDashboard />
+            </Html>
 
-        {/* Layered opportunity card floating in front of the screen */}
-        <Html
-          transform
-          distanceFactor={HTML_DISTANCE}
-          position={[1.32, 0.24, 0.5]}
-          rotation={[0.04, -0.28, 0]}
-          style={{ pointerEvents: 'none' }}
-          zIndexRange={[30, 20]}
-        >
-          <div
-            className="rounded-xl border border-vantage-border bg-vantage-surfaceAlt p-3.5"
-            style={{ width: 250, boxShadow: '0 30px 60px -15px rgba(0,0,0,0.85)' }}
-            aria-hidden="true"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[8px] uppercase tracking-wide text-vantage-textDim">
-                Kalshi · NYY @ BOS
-              </span>
-              <span className="flex items-center gap-1 text-[8px] font-semibold text-vantage-positive">
-                <span className="h-1 w-1 rounded-full bg-vantage-positive" />
-                LIVE
-              </span>
-            </div>
+            {/* Layered opportunity card floating in front of the screen */}
+            <Html
+              transform
+              distanceFactor={HTML_DISTANCE}
+              position={[1.32, 0.24, 0.5]}
+              rotation={[0.04, -0.28, 0]}
+              style={{ pointerEvents: 'none' }}
+              zIndexRange={[30, 20]}
+            >
+              <div
+                className="rounded-xl border border-vantage-border bg-vantage-surfaceAlt p-3.5"
+                style={{ width: 250, boxShadow: '0 30px 60px -15px rgba(0,0,0,0.85)' }}
+                aria-hidden="true"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[8px] uppercase tracking-wide text-vantage-textDim">
+                    Kalshi · NYY @ BOS
+                  </span>
+                  <span className="flex items-center gap-1 text-[8px] font-semibold text-vantage-positive">
+                    <span className="h-1 w-1 rounded-full bg-vantage-positive" />
+                    LIVE
+                  </span>
+                </div>
 
-            <div className="mt-1.5 text-[12px] font-semibold text-vantage-text">
-              Aaron Judge — Over 1.5 TB
-            </div>
+                <div className="mt-1.5 text-[12px] font-semibold text-vantage-text">
+                  Aaron Judge — Over 1.5 TB
+                </div>
 
-            <div className="mt-3 flex items-end justify-between">
-              <div>
-                <div className="text-[8px] text-vantage-textDim">Market price</div>
-                <div className="text-[15px] font-bold leading-tight text-vantage-text">42¢</div>
+                <div className="mt-3 flex items-end justify-between">
+                  <div>
+                    <div className="text-[8px] text-vantage-textDim">Market price</div>
+                    <div className="text-[15px] font-bold leading-tight text-vantage-text">42¢</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[8px] text-vantage-textDim">Price advantage</div>
+                    <div className="text-[15px] font-bold leading-tight text-vantage-positive">+5¢</div>
+                  </div>
+                </div>
+
+                <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-vantage-raised">
+                  <div className="h-full w-[68%] rounded-full bg-vantage-accent" />
+                </div>
+
+                <div className="mt-2.5 inline-block rounded-full px-2 py-0.5 text-[8px] text-vantage-positive">
+                  Confidence: High
+                </div>
               </div>
-              <div className="text-right">
-                <div className="text-[8px] text-vantage-textDim">Price advantage</div>
-                <div className="text-[15px] font-bold leading-tight text-vantage-positive">+5¢</div>
-              </div>
-            </div>
-
-            <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-vantage-raised">
-              <div className="h-full w-[68%] rounded-full bg-vantage-positive" />
-            </div>
-
-            <div className="mt-2.5 inline-block rounded-full border border-vantage-positive/40 bg-vantage-positive/10 px-2 py-0.5 text-[8px] text-vantage-positive">
-              Confidence: High
-            </div>
-          </div>
-        </Html>
+            </Html>
+          </>
+        )}
 
         {/* Screen-edge rim light */}
         <mesh position={[0, 0.045, 0.02]}>
@@ -258,7 +354,7 @@ export default function LaptopScene() {
             rotationIntensity={reduceMotion ? 0 : 0.14}
             floatIntensity={reduceMotion ? 0 : 0.45}
           >
-            <Laptop />
+            <Laptop reduceMotion={reduceMotion} />
           </Float>
 
           {/* Soft, diffuse ground shadow — no hard rectangular edge */}
