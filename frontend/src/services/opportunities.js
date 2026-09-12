@@ -21,8 +21,12 @@ import { api } from './api.js'
  *     "market":    { "title", "subtitle" },
  *     "platform":  { "name", "iconUrl" },
  *     "price":     { "label", "odds", "oddsLabel", "source" },
- *     "consensus": { "label" },
+ *     "consensus": { "label", "probability" },
  *     "ev":        { "label", "value": <number>, "isPositive": <boolean> },
+ *     "evaluation": {
+ *       "hitProbability", "hitProbabilityLabel", "missProbability",
+ *       "tier", "tierLabel", "kellyPercent", "quarterKellyPercent", "rankScore"
+ *     },
  *     "hasDetail": <boolean>
  *   }
  *
