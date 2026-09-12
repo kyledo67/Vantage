@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion, useReducedMotion } from 'framer-motion'
 import { createPersonaInquiry, getVerificationProfile, VERIFICATION_STATUS } from '../../services/verification.js'
 
-const PERSONA_SCRIPT_SRC = 'https://cdn.withpersona.com/dist/persona-v5.js'
+// Persona requires an exact pinned version in the path (no bare "v5.js") —
+// see https://docs.withpersona.com/embedded-flow-changelog for the latest.
+const PERSONA_SCRIPT_SRC = 'https://cdn.withpersona.com/dist/persona-v5.8.0.js'
 
 let personaScriptPromise = null
 
@@ -43,6 +45,10 @@ const COPY = {
     title: 'We couldn’t verify you',
     body: 'Something went wrong during verification. This doesn’t necessarily mean anything is wrong with your information — it can help to try again.',
   },
+  unavailable: {
+    title: 'Verification isn’t available right now',
+    body: 'A new verification attempt can’t be started at the moment. Please check back later.',
+  },
   error: {
     title: 'Couldn’t reach the verification service',
     body: 'We weren’t able to start verification right now. Please check your connection and try again.',
@@ -50,7 +56,8 @@ const COPY = {
 }
 
 /**
- * Reusable Persona identity-verification widget wrapper.
+ * Reusable Persona identity-verification widget wrapper, built against the
+ * real `POST /api/persona/inquiries/` endpoint.
  *
  * Every terminal state defers final authorization to the backend: a
  * client-side Persona "complete" callback only triggers a real
@@ -58,7 +65,7 @@ const COPY = {
  * itself reports `verification_status: "verified"`.
  */
 export default function PersonaVerification({ onVerified, onPending }) {
-  // idle | loading | open | confirming | cancelled | failed | error
+  // idle | loading | open | confirming | cancelled | failed | unavailable | error
   const [state, setState] = useState('idle')
   const clientRef = useRef(null)
   const reduceMotion = useReducedMotion()
@@ -70,9 +77,9 @@ export default function PersonaVerification({ onVerified, onPending }) {
       if (profile.verification_status === VERIFICATION_STATUS.VERIFIED) {
         onVerified(profile)
       } else {
-        // Persona says done; the backend hasn't caught up yet (webhook lag,
-        // manual review, etc). Hand off to the real pending screen rather
-        // than inventing a second copy of that state here.
+        // Persona says done; the backend/webhook hasn't caught up yet. Hand
+        // off to the real pending screen rather than inventing a second
+        // copy of that state here.
         onPending()
       }
     } catch {
@@ -84,22 +91,41 @@ export default function PersonaVerification({ onVerified, onPending }) {
     setState('loading')
     try {
       const inquiry = await createPersonaInquiry()
+
+      // Already verified — nothing to open. This can happen if the profile
+      // flipped to verified between the guard's check and this step
+      // mounting (e.g. a second tab finished it first).
+      if (inquiry.verified) {
+        onVerified()
+        return
+      }
+
+      if (!inquiry.launchable) {
+        setState('unavailable')
+        return
+      }
+
       await loadPersonaScript()
+      // Resuming a backend-created inquiry uses inquiryId + sessionToken (no
+      // environmentId/templateId — those are for the client-creates-its-own-
+      // inquiry flow instead). `open()` must be called from inside onReady,
+      // not right after construction, or Persona ignores the call.
       const client = new window.Persona.Client({
         inquiryId: inquiry.inquiryId,
         sessionToken: inquiry.sessionToken,
-        environmentId: inquiry.environmentId,
-        onLoad: () => setState('open'),
+        onReady: () => {
+          setState('open')
+          client.open()
+        },
         onComplete: () => confirmWithBackend(),
         onCancel: () => setState('cancelled'),
         onError: () => setState('failed'),
       })
       clientRef.current = client
-      client.open()
     } catch {
       setState('error')
     }
-  }, [confirmWithBackend])
+  }, [confirmWithBackend, onVerified])
 
   useEffect(() => {
     start()

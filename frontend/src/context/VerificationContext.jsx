@@ -1,14 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo } from 'react'
 import { useAuth } from './AuthContext.jsx'
 import { useAsync } from '../hooks/useAsync.js'
-import { VERIFICATION_STATUS, getVerificationProfile } from '../services/verification.js'
+import { getVerificationProfile } from '../services/verification.js'
 
 /**
  * Verification state for the signed-in user, backed by the real
- * `GET /api/profile/` endpoint. Country is tracked here too, but only as
- * local, session-only UI state — the backend has no field for it yet (see
- * services/verification.js), so it is never treated as a confirmed,
- * backend-verified fact and is never persisted anywhere.
+ * `GET /api/profile/` endpoint. Residence country/eligibility are Persona-
+ * and backend-owned facts (see services/verification.js) — there's no
+ * frontend pre-step that collects or guesses them.
  */
 
 const VerificationContext = createContext(null)
@@ -16,24 +15,25 @@ const VerificationContext = createContext(null)
 export function VerificationProvider({ children }) {
   const { isAuthenticated } = useAuth()
   const profile = useAsync(getVerificationProfile, [], { immediate: isAuthenticated })
-  const [country, setCountry] = useState(null)
 
   const refetch = useCallback(() => profile.refetch(), [profile.refetch])
 
-  const status = profile.status === 'error' ? 'error' : profile.status === 'success'
-    ? profile.data?.verification_status ?? VERIFICATION_STATUS.NOT_STARTED
-    : 'loading'
+  const status = profile.status === 'error'
+    ? 'error'
+    : profile.status === 'success'
+      ? profile.data?.verification_status ?? 'not_started'
+      : 'loading'
 
   const value = useMemo(
     () => ({
       status, // 'loading' | 'error' | not_started | pending | verified | declined
       profile: profile.data,
       isAgeVerified: Boolean(profile.data?.is_age_verified),
-      country,
-      setCountry,
+      eligibility: profile.data?.eligibility ?? null,
+      residenceCountryCode: profile.data?.residence_country_code || null,
       refetch,
     }),
-    [status, profile.data, country, refetch]
+    [status, profile.data, refetch]
   )
 
   return <VerificationContext.Provider value={value}>{children}</VerificationContext.Provider>

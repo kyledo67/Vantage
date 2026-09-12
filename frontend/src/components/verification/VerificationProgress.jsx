@@ -1,11 +1,10 @@
 const STEPS = [
-  { id: 'country', label: 'Confirm country' },
   { id: 'eligibility', label: 'Confirm eligibility' },
   { id: 'persona', label: 'Verify identity' },
   { id: 'complete', label: 'Complete' },
 ]
 
-/** Simple 4-step indicator — current and completed steps read in purple,
+/** Simple 3-step indicator — current and completed steps read in purple,
  *  everything ahead stays muted. Purely presentational; step order and
  *  gating live in the page that renders this. */
 export default function VerificationProgress({ currentStep }) {

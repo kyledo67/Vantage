@@ -1,14 +1,23 @@
 import { useState } from 'react'
-import { useLocation, useNavigate } from 'react-router-dom'
-import VerificationShell from '../../components/verification/VerificationShell.jsx'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useVerification } from '../../context/VerificationContext.jsx'
-import { VERIFICATION_STATUS } from '../../services/verification.js'
+import { createPersonaInquiry } from '../../services/verification.js'
+import VerificationShell from '../../components/verification/VerificationShell.jsx'
 
 /**
- * Reached when the backend reports `verification_status: "pending"`, or
- * right after Persona reports completion while the backend/webhook hasn't
- * caught up yet. "Check status" re-polls the real profile endpoint —
- * nothing here decides verification itself.
+ * Reached when the backend reports `verification_status: "pending"` — which
+ * covers two different real situations: an inquiry is genuinely under
+ * Persona's review, or the user started but never finished one (the backend
+ * marks a profile "pending" as soon as an inquiry is created, before the
+ * widget is even opened — see PersonaInquiryView). "Continue verification"
+ * exists for the second case, since there's otherwise no way back in.
+ *
+ * "Check status" calls the real `POST /api/persona/inquiries/` endpoint
+ * rather than just re-reading the stored profile: that endpoint round-trips
+ * to Persona itself and re-syncs the result, so it reflects Persona's
+ * current state even if the webhook that normally does this hasn't reached
+ * this environment (e.g. no local tunnel configured) — a plain profile
+ * refetch would otherwise look "stuck" indefinitely.
  */
 export default function VerificationPendingPage() {
   const { refetch } = useVerification()
@@ -16,14 +25,23 @@ export default function VerificationPendingPage() {
   const location = useLocation()
   const destination = location.state?.from?.pathname || '/ev-finder'
   const [checking, setChecking] = useState(false)
+  const [message, setMessage] = useState(null)
 
   async function handleCheckStatus() {
     setChecking(true)
+    setMessage(null)
     try {
-      const result = await refetch()
-      if (result?.verification_status === VERIFICATION_STATUS.VERIFIED) {
+      const inquiry = await createPersonaInquiry()
+      if (inquiry?.verified) {
+        await refetch()
         navigate(destination, { replace: true })
+        return
       }
+      setMessage(
+        'Still pending. If you haven’t finished verification yet, you can continue it below.'
+      )
+    } catch {
+      setMessage('Couldn’t check your status right now. Please try again in a moment.')
     } finally {
       setChecking(false)
     }
@@ -42,6 +60,7 @@ export default function VerificationPendingPage() {
         <p className="max-w-sm text-base leading-relaxed text-vantage-textDim">
           We’re confirming your verification. You can return shortly to check your status.
         </p>
+
         <button
           type="button"
           onClick={handleCheckStatus}
@@ -50,6 +69,19 @@ export default function VerificationPendingPage() {
         >
           {checking ? 'Checking…' : 'Check status'}
         </button>
+
+        {message && (
+          <p className="max-w-sm text-sm leading-relaxed text-vantage-textDim" role="status" aria-live="polite">
+            {message}
+          </p>
+        )}
+
+        <Link
+          to="/verify"
+          className="mt-1 flex min-h-[44px] items-center text-sm font-medium text-vantage-alert transition-colors hover:text-vantage-accent"
+        >
+          Continue verification
+        </Link>
       </div>
     </VerificationShell>
   )

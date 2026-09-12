@@ -6,15 +6,12 @@ import VerificationShell from '../verification/VerificationShell.jsx'
 
 /**
  * Sits inside RequireAuth, around every authenticated product route.
- * "Eligible country" isn't something the backend tracks yet (see
- * services/verification.js) — the real, enforceable gate here is the
- * backend's own `verification_status` (and `is_age_verified`, which
- * Persona/the backend sets). A signed-in-but-unverified user can never
- * see product routes through this guard, regardless of what the country
- * step showed them client-side.
+ * Verification and eligibility are both real, backend-computed facts
+ * (GET /api/profile/'s `verification_status` and `eligibility.is_eligible`)
+ * — nothing here decides either one itself.
  */
 export default function VerificationGuard({ children }) {
-  const { status, isAgeVerified } = useVerification()
+  const { status, isAgeVerified, eligibility } = useVerification()
   const location = useLocation()
 
   if (status === 'loading') {
@@ -54,6 +51,10 @@ export default function VerificationGuard({ children }) {
 
   if (status !== VERIFICATION_STATUS.VERIFIED || !isAgeVerified) {
     return <Navigate to="/verify" state={{ from: location }} replace />
+  }
+
+  if (eligibility && !eligibility.is_eligible) {
+    return <Navigate to="/verify/unavailable" state={{ from: location }} replace />
   }
 
   return children
