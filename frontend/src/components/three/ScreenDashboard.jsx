@@ -19,7 +19,7 @@ const rows = [
     selection: '2+ total bases',
     event: 'NYY at TOR',
     time: 'Today 7:05 PM',
-    platform: 'Polymarket',
+    platform: 'Polymarket US',
     price: 'YES 38¢',
     consensus: '48.7%',
     ev: '+12.6%',

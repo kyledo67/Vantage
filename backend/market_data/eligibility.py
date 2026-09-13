@@ -1,6 +1,6 @@
 """Conservative age and residence checks for supported prediction markets.
 
-These checks are a pre-screen for Vantage. Kalshi and Polymarket remain the
+These checks are a pre-screen for Vantage. Kalshi and Polymarket US remain the
 authority on whether an individual can open an account or place a trade.
 """
 
@@ -24,33 +24,11 @@ KALSHI_RESTRICTED_COUNTRIES = frozenset(
     }
 )
 
-# Polymarket.com Geographic Restrictions, checked September 12, 2026.
-# https://help.polymarket.com/en/articles/13364163-geographic-restrictions
-POLYMARKET_RESTRICTED_COUNTRIES = frozenset(
-    {
-        "AU", "BE", "BY", "BR", "BI", "CF", "CD", "CU", "DE", "ET",
-        "FR", "GB", "IE", "IR", "IQ", "IT", "JP", "KP", "LB", "LY",
-        "MM", "MT", "NI", "NL", "NZ", "PL", "RU", "SG", "SK", "SO",
-        "SS", "SD", "SY", "TW", "TH", "UM", "US", "VE", "YE", "ZW",
-    }
-)
-
-POLYMARKET_RESTRICTED_SUBDIVISIONS = {
-    "CA": frozenset(
-        {
-            "AB", "ALBERTA",
-            "BC", "BRITISH COLUMBIA",
-            "ON", "ONTARIO",
-            "QC", "QUEBEC", "QUÉBEC",
-        }
-    ),
-    "UA": frozenset(
-        {
-            "09", "14", "43",
-            "CRIMEA", "DONETSK", "LUHANSK", "LUGANSK",
-        }
-    ),
-}
+# Polymarket US is the CFTC-regulated U.S. product and is currently built for
+# U.S. residents. The platform remains authoritative during onboarding and at
+# trade time.
+# https://docs.polymarket.us/getting-started/what-is-polymarket-us
+POLYMARKET_US_ALLOWED_COUNTRIES = frozenset({"US"})
 
 
 @dataclass(frozen=True)
@@ -84,7 +62,6 @@ def evaluate_platform_eligibility(
         return {"kalshi": decision, "polymarket": decision}
 
     country = _normalize(residence_country_code)
-    subdivision = _normalize(residence_subdivision)
     if len(country) != 2 or not country.isalpha():
         decision = _pending(
             "Persona must provide a verified two-letter country of residence."
@@ -104,28 +81,17 @@ def evaluate_platform_eligibility(
             "Age and residence pass Vantage's current Kalshi pre-screen.",
         )
 
-    if country in POLYMARKET_RESTRICTED_COUNTRIES:
-        reason = "Polymarket.com currently restricts trading from this country."
-        if country == "US":
-            reason += " U.S. users must check the separate Polymarket US product."
-        polymarket = EligibilityDecision(False, "residence_restricted", reason)
-    elif country in POLYMARKET_RESTRICTED_SUBDIVISIONS and not subdivision:
-        polymarket = EligibilityDecision(
-            False,
-            "region_verification_required",
-            "Polymarket restrictions vary by region in this country; Persona must provide the residence region.",
-        )
-    elif subdivision in POLYMARKET_RESTRICTED_SUBDIVISIONS.get(country, ()):
+    if country not in POLYMARKET_US_ALLOWED_COUNTRIES:
         polymarket = EligibilityDecision(
             False,
             "residence_restricted",
-            "Polymarket.com currently restricts trading from this region.",
+            "Polymarket US is currently built for U.S. residents.",
         )
     else:
         polymarket = EligibilityDecision(
             True,
             "eligible",
-            "Age and residence pass Vantage's current Polymarket.com pre-screen.",
+            "Age and U.S. residence pass Vantage's current Polymarket US pre-screen.",
         )
 
     return {"kalshi": kalshi, "polymarket": polymarket}

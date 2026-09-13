@@ -15,8 +15,8 @@ class UserProfile(models.Model):
 
     class MarketChoice(models.TextChoices):
         KALSHI = "kalshi", "Kalshi"
-        POLYMARKET = "polymarket", "Polymarket"
-        BOTH = "both", "Kalshi and Polymarket"
+        POLYMARKET = "polymarket", "Polymarket US"
+        BOTH = "both", "Kalshi and Polymarket US"
 
     # Match this value to the authenticated Supabase user's UUID when creating a profile.
     uid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

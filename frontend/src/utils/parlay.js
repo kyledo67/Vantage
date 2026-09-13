@@ -73,3 +73,14 @@ export function findDuplicateEventGroups(selections) {
     .filter((items) => items.length > 1)
     .map((items) => ({ eventName: items[0].selection.subtitle, opportunities: items }))
 }
+
+export function getMarketHandoffUrl(opportunity) {
+  const platform = opportunity?.action?.platform || opportunity?.platform?.name
+  const platformKey = String(platform || '').trim().toLowerCase()
+  if (opportunity?.action?.marketUrl) return opportunity.action.marketUrl
+  if (platformKey === 'kalshi') return 'https://kalshi.com/markets'
+  if (platformKey === 'polymarket' || platformKey === 'polymarket us') {
+    return 'https://polymarket.us/sports'
+  }
+  return null
+}

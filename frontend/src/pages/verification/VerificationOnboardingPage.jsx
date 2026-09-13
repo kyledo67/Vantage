@@ -126,7 +126,7 @@ function UnavailableStep({ eligibility }) {
         Vantage isn’t available for your region yet
       </h1>
       <p className="mt-2 text-base leading-relaxed text-vantage-textDim">
-        You’re verified, but Kalshi and Polymarket both restrict trading from your confirmed
+        You’re verified, but Kalshi and Polymarket US both restrict trading from your confirmed
         location right now. This isn’t a reflection of your eligibility as a person — it’s a
         regional availability limit set by those platforms.
       </p>

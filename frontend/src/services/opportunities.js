@@ -20,6 +20,7 @@ import { api } from './api.js'
  *     "selection": { "title", "subtitle", "avatarUrl", "tags": ["<string>"] },
  *     "market":    { "title", "subtitle" },
  *     "platform":  { "name", "iconUrl" },
+ *     "action":    { "platform", "marketUrl", "comboPrefillSupported" },
  *     "price":     { "label", "odds", "oddsLabel", "source" },
  *     "consensus": { "label", "probability" },
  *     "ev":        { "label", "value": <number>, "isPositive": <boolean> },
