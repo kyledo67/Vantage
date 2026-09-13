@@ -70,8 +70,18 @@ export default function DashboardLayout() {
           {/* Nav and background stay mounted outside this — only the page
               content itself fades, so navigating never reads as leaving
               Vantage. Reduced-motion users get opacity only (or none), via
-              the root MotionConfig. */}
-          <AnimatePresence mode="wait" initial={false}>
+              the root MotionConfig.
+              NOTE: intentionally not `mode="wait"` — that defers mounting
+              the new route (and firing its data fetches) until the previous
+              page's exit animation fully finishes, and that hand-off can
+              stall under React 18 until an unrelated re-render nudges it
+              forward (symptom: URL changes, page stays on its loading
+              skeleton, and no request fires until you click again).
+              `popLayout` mounts the new page immediately instead of
+              depending on that hand-off, while still pulling the exiting
+              page out of layout flow so it fades out in place rather than
+              shoving the new content around underneath it. */}
+          <AnimatePresence mode="popLayout" initial={false}>
             <motion.div
               key={location.pathname}
               initial={{ opacity: 0, y: 10 }}

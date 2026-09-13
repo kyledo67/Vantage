@@ -21,7 +21,6 @@ function LockIcon() {
 // Product dropdown — only routes that actually exist.
 const productLinks = [
   { to: '/ev-finder', label: 'EV Finder', blurb: 'Contracts priced below market' },
-  { to: '/markets', label: 'Markets', blurb: 'Browse sports, events, and contracts' },
   { to: '/parlay', label: 'My Parlays', blurb: 'Review selections together' },
 ]
 
@@ -125,12 +124,6 @@ export default function Navbar() {
               {!isAuthenticated && <LockIcon />}
             </span>
           </NavLink>
-          <NavLink to="/ev-finder" className={centerLinkClass}>
-            <span className="flex items-center gap-2">
-              Markets
-              {!isAuthenticated && <LockIcon />}
-            </span>
-          </NavLink>
         </nav>
 
         <div className="flex items-center gap-6">
@@ -149,6 +142,14 @@ export default function Navbar() {
               >
                 Log out
               </button>
+              <motion.div whileTap={{ scale: 0.96 }}>
+                <Link
+                  to="/home"
+                  className="flex min-h-[56px] items-center rounded-full bg-vantage-accent px-7 text-base font-semibold text-vantage-ctaText transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-vantage-accent"
+                >
+                  Get Started
+                </Link>
+              </motion.div>
             </>
           ) : (
             <>

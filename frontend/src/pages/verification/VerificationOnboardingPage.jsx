@@ -156,7 +156,7 @@ export default function VerificationOnboardingPage() {
   const { refetch } = useVerification()
   const navigate = useNavigate()
   const location = useLocation()
-  const destination = location.state?.from?.pathname || '/ev-finder'
+  const destination = location.state?.from?.pathname || '/home'
   const [step, setStep] = useState('eligibility')
   const [eligibility, setEligibility] = useState(null)
 

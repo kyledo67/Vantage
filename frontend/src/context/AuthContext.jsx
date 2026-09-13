@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
   const login = useCallback(async ({ email, password, provider, redirectTo } = {}) => {
     const client = requireSupabase()
     if (provider) {
-      const callbackUrl = new URL(redirectTo || '/ev-finder', window.location.origin).toString()
+      const callbackUrl = new URL(redirectTo || '/home', window.location.origin).toString()
       const { data, error } = await client.auth.signInWithOAuth({
         provider,
         options: { redirectTo: callbackUrl },
@@ -57,7 +57,7 @@ export function AuthProvider({ children }) {
 
   const signup = useCallback(async ({ email, password } = {}) => {
     const client = requireSupabase()
-    const emailRedirectTo = new URL('/ev-finder', window.location.origin).toString()
+    const emailRedirectTo = new URL('/home', window.location.origin).toString()
     const { data, error } = await client.auth.signUp({
       email,
       password,

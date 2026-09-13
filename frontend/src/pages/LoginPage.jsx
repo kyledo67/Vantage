@@ -39,7 +39,7 @@ export default function LoginPage() {
   const requestedPath = location.state?.from?.pathname
   const redirectTo = /^\/[a-zA-Z0-9/_-]*$/.test(requestedPath || '')
     ? requestedPath
-    : '/ev-finder'
+    : '/home'
 
   async function run(action) {
     setBusy(true)
@@ -60,7 +60,7 @@ export default function LoginPage() {
       if (isRecovery) {
         if (password !== confirmPassword) throw new Error('Passwords do not match.')
         await updatePassword(password)
-        navigate('/ev-finder', { replace: true })
+        navigate('/home', { replace: true })
         return
       }
 
