@@ -210,7 +210,14 @@ export default function DashboardHeader({
               value={value}
               onChange={(e) => setValue(e.target.value)}
               placeholder="Search players, teams, markets…"
-              className="h-14 w-72 rounded-full border border-vantage-border bg-vantage-surface pl-12 pr-5 text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent lg:w-[30rem]"
+              // pr matches pl (both clear the icon's 48px zone) so text-center
+              // centers within the icon-to-edge space, not the whole input
+              // box — otherwise the icon's left padding would pull it right.
+              // appearance-none drops the native type="search" chrome
+              // (WebKit reserves extra space on the right for its own
+              // clear/decoration button, which skews text-center off-true
+              // even though our own icon/clear affordance is already custom).
+              className="h-14 w-72 appearance-none rounded-full border border-vantage-border bg-vantage-surface pl-12 pr-12 text-center text-base text-vantage-text placeholder:text-vantage-textDim focus:border-vantage-accent focus:outline-none focus:ring-1 focus:ring-vantage-accent lg:w-[30rem]"
             />
           </label>
 

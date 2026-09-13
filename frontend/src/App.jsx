@@ -6,7 +6,6 @@ import HomePage from './pages/HomePage.jsx'
 import EvFinderPage from './pages/EvFinderPage.jsx'
 import WatchlistPage from './pages/WatchlistPage.jsx'
 import ParlayBuilderPage from './pages/ParlayBuilderPage.jsx'
-import AlertsPage from './pages/AlertsPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import MethodologyPage from './pages/MethodologyPage.jsx'
@@ -98,7 +97,6 @@ export default function App() {
             <Route path="/ev-finder" element={<EvFinderPage />} />
             <Route path="/watchlist" element={<WatchlistPage />} />
             <Route path="/parlay" element={<ParlayBuilderPage />} />
-            <Route path="/alerts" element={<AlertsPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             {/* Old route kept working for anyone holding the link. */}

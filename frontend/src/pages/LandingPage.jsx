@@ -150,8 +150,8 @@ export default function LandingPage() {
           <div className="flex flex-col items-center justify-center gap-2.5 rounded-lg border border-dashed border-vantage-positive/30 bg-vantage-positive/5 p-8 text-center">
             <p className="text-base font-medium text-vantage-text">More on the way</p>
             <p className="max-w-xs text-sm leading-relaxed text-vantage-textDim">
-              Vantage is a hackathon MVP — the EV Finder is live today; parlay analysis,
-              watchlists, and more sports are coming next.
+              The EV Finder is live today; parlay analysis, watchlists, insider activity,
+              smart money tracking, and more sports are coming next.
             </p>
             <Link
               to="/ev-finder"

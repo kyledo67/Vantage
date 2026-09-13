@@ -14,26 +14,18 @@ const CLV_PERIODS = [
 const SERIES_LENGTH = { today: 6, yday: 6, '7d': 7, '1m': 30, '1y': 12, all: 12 }
 
 // A brand-new (or mock) account has no settled bet history — every point is
-// zero rather than an invented trend, matching the "No bets today yet"
-// empty state in the Bet overview widget below.
+// zero rather than an invented trend.
 function emptySeries(period) {
   const length = SERIES_LENGTH[period] ?? 7
   return Array.from({ length }, (_, i) => ({ t: i, value: 0 }))
 }
 
-/**
- * GET /api/home/overview — today's bet activity for the Home dashboard's
- * "Bet overview" widget.
- *   { riskedCents, potentialCents, totalBets, winRate: <0-1 or null> }
- * `winRate` is `null` (never `0`) when nothing has settled yet — the widget
- * treats that as "no data" rather than a real 0% result.
- */
-export async function getHomeOverview() {
-  if (USE_MOCKS) {
-    return { riskedCents: 0, potentialCents: 0, totalBets: 0, winRate: null }
-  }
-  return api.get('/home/overview')
-}
+// The Home dashboard's "Bet overview" widget used to read a /home/overview
+// endpoint here, but there's no real bet-placement/settlement backend to
+// back it — it always came back zeroed. It now reads the saved-parlay data
+// directly (see HomePage.jsx's BetOverviewWidget / ParlayContext.jsx), the
+// same source HistoryPage.jsx uses, since that's the only activity record
+// that actually exists.
 
 /**
  * GET /api/home/clv?period=<today|yday|7d|1m|1y|all> — Closing Line Value
