@@ -188,6 +188,7 @@ class HealthView(APIView):
                     and bool(settings.PERSONA_INQUIRY_TEMPLATE_ID),
                     "persona_webhook": bool(settings.PERSONA_WEBHOOK_SECRET),
                     "parlay_api": bool(settings.PARLAY_API_KEY),
+                    "propline": bool(settings.PROPLINE_API_KEY),
                     "kalshi": bool(settings.KALSHI_API_BASE_URL),
                     "polymarket": bool(settings.POLYMARKET_US_API_BASE_URL),
                     "supabase": bool(settings.SUPABASE_URL),

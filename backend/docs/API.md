@@ -57,6 +57,7 @@ None.
     "persona": true,
     "persona_webhook": false,
     "parlay_api": true,
+    "propline": true,
     "kalshi": true,
     "polymarket": true,
     "supabase": true
@@ -70,6 +71,7 @@ None.
 | `integrations.persona` | `true` when both the Persona API key and template ID have values. |
 | `integrations.persona_webhook` | `true` when the Persona webhook signing secret has a value. |
 | `integrations.parlay_api` | `true` when `PARLAY_API_KEY` has a value. |
+| `integrations.propline` | `true` when `PROPLINE_API_KEY` has a value. |
 | `integrations.kalshi` | `true` when the public Kalshi base URL is configured. |
 | `integrations.polymarket` | `true` when the public Polymarket US gateway base URL is configured. |
 | `integrations.supabase` | `true` when the Supabase project URL has a value. |
@@ -268,8 +270,9 @@ of September 12, 2026. They must be reviewed when either platform changes its ru
 
 ## +EV opportunity finder
 
-The finder reads executable target asks directly from Kalshi and Polymarket US and asks
-ParlayAPI for the corresponding sportsbook and exchange references. Supported target
+The finder reads Kalshi player-prop and game-market asks from PropLine, reads
+Polymarket US asks from its public API, and asks ParlayAPI for the
+corresponding sportsbook, exchange, and Robinhood Event Contracts references. Supported target
 markets include player props, moneylines, spreads, game totals, team totals,
 both-teams-to-score, and EPL total corners. Django matches equivalent markets, removes
 each reference source's margin, builds a weighted fair probability, and calculates EV
@@ -303,7 +306,7 @@ GET /api/opportunities/?category=americanfootball_nfl&platform=kalshi&market_typ
 | `min_ev` | No | `1` | Minimum net EV percentage. Defaults to `0`. Negative-EV results are never returned. |
 | `min_probability` | No | `30` | Minimum estimated hit probability from `30` through `100`. Values below `30` are raised to the hard `30%` floor. |
 | `search` | No | `mahomes` | Case-insensitive search across event, selection, market, and platform names. |
-| `refresh` | No | `true` | Fetches new ParlayAPI references and direct Kalshi/Polymarket US asks. Omit it when changing filters so no credits are spent. |
+| `refresh` | No | `true` | Fetches fresh PropLine Kalshi props, ParlayAPI reference and Robinhood prices, plus direct Kalshi/Polymarket US asks. Omit it when changing filters so no credits are spent. |
 
 Configured category values are currently:
 
@@ -323,7 +326,7 @@ soccer_epl
   "live": {
     "isLive": true,
     "updatedAt": "2026-09-12T05:00:00+00:00",
-    "source": "ParlayAPI + Kalshi + Polymarket US",
+    "source": "PropLine Kalshi + ParlayAPI (Robinhood and references) + Polymarket US",
     "sportsLoaded": ["baseball_mlb", "americanfootball_nfl"],
     "sportsFailed": []
   },
@@ -676,8 +679,9 @@ displayed two-sided margin.
 - The first opportunity request after a backend restart fetches one player-props
   snapshot and one game-odds snapshot for each configured sport.
 - Changing filters reads the current Django snapshot and does not spend API credits.
-- `refresh=true` fetches new ParlayAPI references and direct Kalshi/Polymarket US target
-  asks, then completely replaces the previous snapshot.
+- `refresh=true` fetches fresh PropLine Kalshi props and game markets, ParlayAPI
+  references (including Robinhood Event Contracts), and direct Polymarket US asks, then
+  completely replaces the previous snapshot.
 - The ParlayAPI request uses `maxAgeSec` so rows older than the configured freshness
   bound are excluded. The default bound is 300 seconds to accommodate the current
   Kalshi refresh cadence.
@@ -696,7 +700,36 @@ These values are configurable with backend environment variables.
 
 ## External services
 
-### ParlayAPI — implemented
+### PropLine — implemented for Kalshi props and game markets
+
+Base URL:
+
+```text
+https://api.prop-line.com/v1
+```
+
+Authentication:
+
+```http
+X-API-Key: <PROPLINE_API_KEY>
+```
+
+Current calls, made only after the user requests `refresh=true`:
+
+```text
+GET /sports/{sport}/events
+GET /sports/{sport}/odds?markets=h2h,spreads,totals&bookmakers=kalshi&includeLinks=true
+GET /sports/{sport}/events/{event_id}/odds?bookmakers=kalshi&includeLinks=true
+```
+
+The backend asks PropLine only for the `kalshi` bookmaker. It reads Kalshi game
+markets in bulk, then pairs each live player-prop Over/Under contract and preserves the
+Kalshi event URL for the handoff. A missing PropLine key falls back to the public
+Kalshi game-market reader; player props resume when a PropLine key is set.
+
+Documentation: <https://prop-line.com/docs>
+
+### ParlayAPI — implemented for references and Robinhood
 
 Base URL:
 
@@ -717,8 +750,13 @@ GET /sports/{sport}/props
 GET /sports/{sport}/odds
 ```
 
-Both requests ask for all configured reference sources in American-odds format. The
-props request includes event-market rows, caps row age with `maxAgeSec`, and allows up
+Both requests ask for all configured reference sources in American-odds format. Kalshi
+is intentionally omitted because PropLine is the Kalshi source. The request
+includes `robinhood`, which ParlayAPI labels **Robinhood Event Contracts**. Robinhood
+is a comparison/reference source only: it can affect a matched consensus and appears
+with its American odds in the expanded price cards, but Vantage never creates a
+Robinhood opportunity or an `Open market` link because no public placement URL is
+available. The props request includes event-market rows, caps row age with `maxAgeSec`, and allows up
 to 10,000 rows. The game-odds request includes moneylines, spreads, and totals with
 current-line verification metadata. The backend calculates weighted consensus EV from
 these normalized responses instead of calling the single-anchor `/ev` route.

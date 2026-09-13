@@ -15,6 +15,7 @@ from .clients import (
     MarketDataError,
     ParlayAPIClient,
     PolymarketAPIClient,
+    PropLineAPIClient,
 )
 from .target_markets import (
     KALSHI_SERIES,
@@ -60,6 +61,7 @@ REFERENCE_WEIGHTS = {
     "prizepicks": 1.0,
     "kalshi": 0.75,
     "polymarket": 0.75,
+    "robinhood": 0.75,
 }
 SOURCE_ALIASES = {
     "betonlineag": "betonline",
@@ -1141,10 +1143,16 @@ def build_game_opportunities(events):
 
 
 class OpportunityService:
-    cache_key = "market_data:opportunities:half-kelly:v11"
+    cache_key = "market_data:opportunities:half-kelly:v12"
     _refresh_lock = Lock()
 
-    def __init__(self, client=None, kalshi_client=None, polymarket_client=None):
+    def __init__(
+        self,
+        client=None,
+        kalshi_client=None,
+        polymarket_client=None,
+        propline_client=None,
+    ):
         supplied_client = client is not None
         self.client = client or ParlayAPIClient()
         # Unit-test and caller-supplied Parlay clients remain isolated unless
@@ -1155,6 +1163,12 @@ class OpportunityService:
         )
         self.polymarket_client = polymarket_client if supplied_client else (
             polymarket_client or PolymarketAPIClient()
+        )
+        # PropLine is optional so a missing key never prevents the finder from
+        # serving the direct Kalshi-game fallback and Parlay references.
+        self.propline_client = propline_client if supplied_client else (
+            propline_client
+            or (PropLineAPIClient() if settings.PROPLINE_API_KEY else None)
         )
 
     def _refresh(self):
@@ -1195,6 +1209,45 @@ class OpportunityService:
                     if isinstance(event, dict)
                     and (not event.get("sport_key") or event.get("sport_key") == sport)
                 )
+            if self.propline_client:
+                try:
+                    kalshi_prop_rows = self.propline_client.get_kalshi_props(sport)
+                except MarketDataError as exc:
+                    # Keep a usable snapshot when PropLine is temporarily down;
+                    # the direct Kalshi client continues to supply game markets.
+                    result["failures"].append(
+                        {
+                            "sport": sport,
+                            "feed": "propline_kalshi_props",
+                            "error": str(exc),
+                        }
+                    )
+                else:
+                    result["props"].extend(
+                        row
+                        for row in kalshi_prop_rows
+                        if isinstance(row, dict)
+                        and (not row.get("sport_key") or row.get("sport_key") == sport)
+                    )
+                try:
+                    kalshi_game_events = self.propline_client.get_kalshi_game_odds(
+                        sport
+                    )
+                except MarketDataError as exc:
+                    result["failures"].append(
+                        {
+                            "sport": sport,
+                            "feed": "propline_kalshi_game_odds",
+                            "error": str(exc),
+                        }
+                    )
+                else:
+                    result["games"].extend(
+                        event
+                        for event in kalshi_game_events
+                        if isinstance(event, dict)
+                        and (not event.get("sport_key") or event.get("sport_key") == sport)
+                    )
             return result
 
         # Three concurrent sports keep refresh latency practical without a
@@ -1209,7 +1262,9 @@ class OpportunityService:
                     loaded_sports.append(result["sport"])
 
         target_jobs = []
-        if self.kalshi_client:
+        # A configured PropLine client is the sole Kalshi feed. The direct
+        # public client remains a fallback for a local setup without its key.
+        if self.kalshi_client and not self.propline_client:
             target_jobs.extend(
                 ("kalshi", sport, series_ticker, scope)
                 for sport in sports
@@ -1371,7 +1426,7 @@ class OpportunityService:
             "live": {
                 "isLive": snapshot["is_complete"],
                 "updatedAt": snapshot["updated_at"],
-                "source": "ParlayAPI + Kalshi + Polymarket US",
+                "source": "PropLine Kalshi + ParlayAPI (Robinhood and references) + Polymarket US",
                 "sportsLoaded": snapshot["loaded_sports"],
                 "sportsFailed": snapshot["failed_sports"],
             },
@@ -1473,4 +1528,5 @@ def filter_config():
 opportunity_service = OpportunityService(
     kalshi_client=KalshiAPIClient(),
     polymarket_client=PolymarketAPIClient(),
+    propline_client=PropLineAPIClient() if settings.PROPLINE_API_KEY else None,
 )

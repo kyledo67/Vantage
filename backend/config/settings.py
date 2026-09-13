@@ -101,6 +101,10 @@ PARLAY_API_KEY = env("PARLAY_API_KEY", default="")
 PARLAY_API_BASE_URL = env(
     "PARLAY_API_BASE_URL", default="https://parlay-api.com/v1"
 )
+PROPLINE_API_KEY = env("PROPLINE_API_KEY", default="")
+PROPLINE_API_BASE_URL = env(
+    "PROPLINE_API_BASE_URL", default="https://api.prop-line.com/v1"
+)
 KALSHI_API_BASE_URL = env(
     "KALSHI_API_BASE_URL",
     default="https://api.elections.kalshi.com/trade-api/v2",
@@ -122,8 +126,8 @@ MARKET_DATA_SPORTS = env.list(
 MARKET_DATA_BOOKMAKERS = env.list(
     "MARKET_DATA_BOOKMAKERS",
     default=[
-        "kalshi",
         "polymarket",
+        "robinhood",
         "pinnacle",
         "fanduel",
         "novig",
@@ -151,6 +155,9 @@ MARKET_DATA_BOOKMAKERS = env.list(
 )
 MARKET_DATA_MAX_AGE_SECONDS = env.int("MARKET_DATA_MAX_AGE_SECONDS", default=300)
 MARKET_DATA_PROP_LIMIT = env.int("MARKET_DATA_PROP_LIMIT", default=10000)
+MARKET_DATA_PROPLINE_EVENT_LIMIT = env.int(
+    "MARKET_DATA_PROPLINE_EVENT_LIMIT", default=30
+)
 MARKET_DATA_REQUEST_TIMEOUT_SECONDS = env.int(
     "MARKET_DATA_REQUEST_TIMEOUT_SECONDS", default=15
 )
