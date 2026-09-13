@@ -12,7 +12,7 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
 
 from .eligibility import evaluate_platform_eligibility
-from .models import UserProfile
+from .models import SavedParlay, UserProfile
 from .clients import (
     KalshiAPIClient,
     ParlayAPIClient,
@@ -177,6 +177,71 @@ class CurrentUserProfileTests(APITestCase):
 
 
 @override_settings(
+    SUPABASE_URL="https://example.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY="test-publishable-key",
+)
+class SavedParlayApiTests(APITestCase):
+    uid = UUID("22222222-2222-2222-2222-222222222222")
+    url = "/api/parlays/"
+
+    def setUp(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"id": str(self.uid), "email": "parlays@example.com"}
+        self.auth_request = patch(
+            "market_data.authentication.requests.get", return_value=response
+        )
+        self.auth_request.start()
+        self.addCleanup(self.auth_request.stop)
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer valid-access-token")
+
+    def payload(self):
+        return {
+            "name": "Saturday picks",
+            "selections": [{"id": "selection-1", "selection": {"title": "Team A"}}],
+            "estimatedEdge": "+4.2%",
+            "estimatedChance": "51.0%",
+            "positionSizing": {"selectedAmount": 25, "profitIfWin": 30},
+        }
+
+    def test_create_list_update_and_delete_own_saved_parlay(self):
+        create_response = self.client.post(self.url, self.payload(), format="json")
+
+        self.assertEqual(create_response.status_code, 201)
+        parlay_id = create_response.data["id"]
+        self.assertEqual(create_response.data["outcome"], "pending")
+        self.assertEqual(create_response.data["name"], "Saturday picks")
+
+        list_response = self.client.get(self.url)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(list_response.data[0]["id"], parlay_id)
+
+        detail_url = f"{self.url}{parlay_id}/"
+        outcome_response = self.client.patch(detail_url, {"outcome": "won"}, format="json")
+        self.assertEqual(outcome_response.status_code, 200)
+        self.assertEqual(outcome_response.data["outcome"], "won")
+        self.assertIsNotNone(outcome_response.data["settledAt"])
+
+        delete_response = self.client.delete(detail_url)
+        self.assertEqual(delete_response.status_code, 204)
+        self.assertEqual(SavedParlay.objects.count(), 0)
+
+    def test_cannot_read_another_users_saved_parlay(self):
+        other_profile = UserProfile.objects.create(
+            uid=UUID("33333333-3333-3333-3333-333333333333"), bankroll="100.00"
+        )
+        SavedParlay.objects.create(
+            owner=other_profile,
+            name="Other user's parlay",
+            selections=[{"id": "other-selection"}],
+        )
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [])
+
+
+@override_settings(
     MARKET_DATA_COST_ALLOWANCE_PERCENT=1.0,
     MARKET_DATA_MAX_AGE_SECONDS=180,
 )
@@ -206,7 +271,7 @@ class OpportunityCalculationTests(TestCase):
             "url": f"https://example.com/{source}/market",
         }
 
-    def test_half_kelly_sizing_uses_bankroll_ev_odds_and_five_percent_maximum(self):
+    def test_quarter_kelly_sizing_stays_below_the_user_maximum(self):
         opportunity = {
             "price": {"odds": 100},
             "ev": {"value": 10.0},
@@ -218,31 +283,31 @@ class OpportunityCalculationTests(TestCase):
             bankroll="1000.00",
         )
 
-        self.assertEqual(sizing["method"], "Half Kelly")
-        self.assertEqual(sizing["uncappedPercent"], 5.0)
-        self.assertEqual(sizing["recommendedPercent"], 5.0)
+        self.assertEqual(sizing["method"], "Quarter Kelly")
+        self.assertEqual(sizing["uncappedPercent"], 2.5)
+        self.assertEqual(sizing["recommendedPercent"], 2.5)
         self.assertEqual(sizing["maxPositionPercent"], 5.0)
-        self.assertEqual(sizing["recommendedAmount"], 50.0)
+        self.assertEqual(sizing["recommendedAmount"], 25.0)
         self.assertEqual(sizing["maximumAmount"], 50.0)
-        self.assertEqual(sizing["expectedProfit"], 5.0)
-        self.assertEqual(sizing["profitIfWin"], 50.0)
+        self.assertEqual(sizing["expectedProfit"], 2.5)
+        self.assertEqual(sizing["profitIfWin"], 25.0)
         self.assertEqual(sizing["unitSize"], 10.0)
-        self.assertEqual(sizing["recommendedUnits"], 5.0)
+        self.assertEqual(sizing["recommendedUnits"], 2.5)
         self.assertFalse(sizing["isCapped"])
         self.assertFalse(sizing["isMinimumApplied"])
 
-    def test_position_sizing_applies_the_two_point_five_percent_minimum(self):
+    def test_position_sizing_applies_the_half_percent_minimum(self):
         sizing = personalized_position_sizing(
             {
                 "price": {"odds": 100},
                 "ev": {"value": 2.0},
-                "evaluation": {"kellyPercent": 2.0},
+                "evaluation": {"kellyPercent": 1.0},
             },
             bankroll="1000.00",
         )
 
-        self.assertEqual(sizing["uncappedPercent"], 1.0)
-        self.assertEqual(sizing["recommendedPercent"], 2.5)
+        self.assertEqual(sizing["uncappedPercent"], 0.25)
+        self.assertEqual(sizing["recommendedPercent"], 0.5)
         self.assertEqual(sizing["maximumAmount"], 50.0)
         self.assertTrue(sizing["isMinimumApplied"])
 
@@ -258,10 +323,10 @@ class OpportunityCalculationTests(TestCase):
             bankroll="1000.00",
         )
 
-        # $50 at +203 buys the equivalent of about 151.52 33¢ contracts:
-        # $151.50 total payout, or $101.50 profit before fees.
-        self.assertEqual(sizing["recommendedAmount"], 50.0)
-        self.assertEqual(sizing["profitIfWin"], 101.5)
+        # $25 at +203 buys the equivalent of about 75.76 33¢ contracts:
+        # $75.75 total payout, or $50.75 profit before fees.
+        self.assertEqual(sizing["recommendedAmount"], 25.0)
+        self.assertEqual(sizing["profitIfWin"], 50.75)
 
     def test_probability_evaluation_exposes_half_kelly(self):
         evaluation = probability_aware_evaluation(0.60, 2.0, 20.0)
@@ -1099,7 +1164,7 @@ class OpportunityRefreshTests(TestCase):
         self.assertEqual(result["action"]["platform"], "kalshi")
         self.assertEqual(result["action"]["marketUrl"], self.target["url"])
 
-    def test_feed_personalizes_half_kelly_amount_from_profile_settings(self):
+    def test_feed_personalizes_quarter_kelly_amount_from_profile_settings(self):
         client = Mock()
         client.get_props.return_value = [self.target, self.sharp, self.secondary]
         client.get_game_odds.return_value = []
@@ -1113,8 +1178,8 @@ class OpportunityRefreshTests(TestCase):
 
         sizing = result["positionSizing"]
         self.assertTrue(sizing["isConfigured"])
-        self.assertGreaterEqual(sizing["recommendedAmount"], 5.0)
-        self.assertLessEqual(sizing["recommendedAmount"], 10.0)
+        self.assertGreaterEqual(sizing["recommendedAmount"], 1.0)
+        self.assertLessEqual(sizing["recommendedAmount"], 5.0)
         self.assertLessEqual(sizing["recommendedAmount"], sizing["maximumAmount"])
         self.assertEqual(
             sizing["expectedProfit"],

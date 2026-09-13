@@ -197,6 +197,47 @@ Returns the complete updated profile.
 | `400 Bad Request` | An editable field contains an invalid value. |
 | `401 Unauthorized` | The Supabase token is missing, invalid, or expired. |
 
+## Saved parlays and history
+
+Saved parlays are stored in the `saved_parlays` table in Supabase Postgres. Each
+request is authenticated with Supabase Auth, and Django always scopes queries to
+the authenticated user's profile. A user cannot read, change, or delete another
+user's parlay. These records are hypothetical analyses only; they do not place
+orders or store platform credentials.
+
+### `GET /api/parlays/`
+
+Returns the authenticated user's saved parlays, newest first.
+
+### `POST /api/parlays/`
+
+Creates a saved parlay for the authenticated user.
+
+```json
+{
+  "name": "Saturday picks",
+  "selections": [{ "id": "opportunity-123" }],
+  "estimatedEdge": "+4.2%",
+  "estimatedChance": "51.0%",
+  "positionSizing": { "selectedAmount": 25, "profitIfWin": 30 }
+}
+```
+
+`selections` must contain at least one selection. The server creates the ID,
+timestamps, and an initial `pending` outcome.
+
+### `PATCH /api/parlays/{id}/`
+
+Updates a saved parlay owned by the authenticated user. The frontend uses this
+route to rename it and set `outcome` to `pending`, `won`, or `lost`. Setting a
+won or lost outcome records `settledAt`; returning to pending clears it.
+
+### `DELETE /api/parlays/{id}/`
+
+Removes a saved parlay owned by the authenticated user. All saved-parlay routes
+return `401` without a valid Supabase token and `404` for a parlay outside that
+user's account.
+
 ## Settings
 
 ### `GET /api/settings/`
@@ -371,20 +412,20 @@ soccer_epl
         "rankScore": 2.04
       },
       "positionSizing": {
-        "method": "Half Kelly",
-        "kellyFraction": 0.5,
-        "recommendedPercent": 2.5,
+        "method": "Quarter Kelly",
+        "kellyFraction": 0.25,
+        "recommendedPercent": 0.51,
         "maxPositionPercent": 5.0,
         "isCapped": false,
-        "isMinimumApplied": true,
+        "isMinimumApplied": false,
         "isConfigured": true,
         "bankroll": 500.0,
-        "recommendedAmount": 12.50,
-        "recommendedAmountLabel": "$12.50",
-        "expectedProfit": 0.69,
-        "expectedProfitLabel": "+$0.69",
-        "profitIfWin": 33.75,
-        "profitIfWinLabel": "+$33.75",
+        "recommendedAmount": 2.55,
+        "recommendedAmountLabel": "$2.55",
+        "expectedProfit": 0.14,
+        "expectedProfitLabel": "+$0.14",
+        "profitIfWin": 6.88,
+        "profitIfWinLabel": "+$6.88",
         "maximumAmount": 25.0,
         "maximumAmountLabel": "$25.00"
       },
@@ -409,9 +450,9 @@ soccer_epl
 | `evaluation.hitProbability` | Consensus estimate of how often the selection wins, expressed from `0` through `100`. |
 | `evaluation.tier` | Plain-language hit-chance band: `longshot`, `lower`, `moderate`, or `higher`. |
 | `evaluation.kellyPercent` | Full Kelly fraction expressed as a bankroll percentage and used for default ranking. |
-| `evaluation.halfKellyPercent` | Half of full Kelly before applying Vantage's 2.5%–5% position range. |
+| `evaluation.halfKellyPercent` | Half of full Kelly, shown for comparison. |
 | `positionSizing` | Personalized recommendation calculated when the request includes a valid Supabase session and the profile has a bankroll. |
-| `positionSizing.recommendedAmount` | Kelly-based amount constrained to the 2.5%–5% bankroll range. |
+| `positionSizing.recommendedAmount` | Quarter-Kelly amount constrained to the 0.5%–2.5% recommendation range. |
 | `positionSizing.expectedProfit` | Probability-weighted net profit estimate: recommended amount × net EV. It is a long-run average, so it can be small even when a single win pays more. |
 | `positionSizing.profitIfWin` | Profit if the selected outcome wins at the current target odds using the complete recommended stake, before platform fees. |
 
@@ -626,6 +667,7 @@ half Kelly by default:
 
 ```text
 recommended fraction = min(max(0.5 × full Kelly, 2.5%), 5%)
+recommended range     = 0.5% to 2.5%
 maximum slider range  = 5%
 recommended amount   = bankroll × recommended fraction
 expected profit      = recommended amount × net EV
@@ -633,12 +675,13 @@ profit if win        = recommended amount × b
 ```
 
 Dollar amounts are rounded down to cents. One unit is still defined as one percent of
-bankroll for display. Vantage raises a smaller half-Kelly result to the product's 2.5%
-minimum and limits the recommendation and slider to 5% of the bankroll.
+bankroll for display. Vantage uses quarter Kelly, raises a smaller result to a 0.5%
+minimum, and caps the recommendation at 2.5% of bankroll. The parlay slider may go to
+5% when the user deliberately chooses a larger amount.
 
 For a multi-leg build, the frontend multiplies independent leg probabilities and target
-decimal odds, compounds the legs' net EV values, then applies the same 2.5%–5%
-position range. Same-event builds remain blocked because their correlation is not
+decimal odds, compounds the legs' net EV values, then applies the same 0.5%–2.5%
+recommendation range with a separate 5% slider ceiling. Same-event builds remain blocked because their correlation is not
 modeled.
 
 ### Consensus weights

@@ -9,14 +9,14 @@ const inputClass =
 
 /**
  * There's no backend activity feed yet — the parlay builder is the only
- * place the app records anything a user has actually done, so History is
- * that same session-only saved-parlay list (see ParlayContext.jsx),
+ * place the app records anything a user has actually done, so History is the
+ * same per-account saved-parlay list (see ParlayContext.jsx),
  * presented as a searchable/date-filterable timeline instead of a card
  * grid. Renaming/removing still happens on the My Parlays page; this view
- * is read-only (click a row to see the full breakdown).
+ * is read-only aside from the user marking a saved parlay as won or lost.
  */
 export default function HistoryPage() {
-  const { savedParlays } = useParlays()
+  const { savedParlays, setParlayOutcome } = useParlays()
   const [search, setSearch] = useState('')
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
@@ -48,7 +48,7 @@ export default function HistoryPage() {
     <div className="mx-auto flex w-full min-w-0 max-w-[1440px] flex-col gap-8">
       <SectionHeader
         title="History"
-        description="A record of the parlays you've built and saved this session."
+        description="A record of your saved parlays. Mark results to update your home performance summary."
       />
 
       <div className="flex flex-wrap items-end gap-4">
@@ -109,12 +109,23 @@ export default function HistoryPage() {
           <ol>
             {events.map((parlay) => {
               const count = parlay.selections?.length ?? 0
+              const outcome = parlay.outcome ?? 'pending'
+              const outcomeLabel = outcome === 'won' ? 'Won' : outcome === 'lost' ? 'Lost' : 'Pending'
+              const outcomeClass =
+                outcome === 'won'
+                  ? 'bg-vantage-positive/15 text-vantage-positive'
+                  : outcome === 'lost'
+                    ? 'bg-vantage-danger/15 text-vantage-danger'
+                    : 'bg-vantage-raised text-vantage-alert'
               return (
-                <li key={parlay.id} className="border-b border-vantage-border/60 last:border-b-0">
+                <li
+                  key={parlay.id}
+                  className="flex flex-col gap-3 border-b border-vantage-border/60 px-5 py-5 last:border-b-0 sm:flex-row sm:items-center"
+                >
                   <button
                     type="button"
                     onClick={() => setDetailsParlay(parlay)}
-                    className="flex min-h-[100px] w-full items-start gap-5 px-5 py-5 text-left transition-colors hover:bg-vantage-surfaceAlt/60"
+                    className="flex min-h-[76px] min-w-0 flex-1 items-start gap-5 text-left transition-colors hover:text-vantage-accent"
                   >
                     <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-vantage-accent" />
                     <div className="min-w-0 flex-1">
@@ -129,11 +140,47 @@ export default function HistoryPage() {
                         {parlay.estimatedEdge && <> · Edge {parlay.estimatedEdge}</>}
                         {parlay.estimatedChance && <> · Chance {parlay.estimatedChance}</>}
                       </p>
-                      <span className="mt-2 inline-block rounded bg-vantage-raised px-2 py-0.5 text-xs uppercase text-vantage-alert">
-                        Parlay saved
+                      <span className={`mt-2 inline-block rounded px-2 py-0.5 text-xs uppercase ${outcomeClass}`}>
+                        {outcomeLabel}
                       </span>
                     </div>
                   </button>
+                  <div className="flex flex-shrink-0 items-center gap-1.5" aria-label={`Result for ${parlay.name}`}>
+                    <span className="mr-1 text-xs text-vantage-textDim">Result</span>
+                    <button
+                      type="button"
+                      onClick={() => setParlayOutcome(parlay.id, 'won')}
+                      aria-pressed={outcome === 'won'}
+                      className={`min-h-[36px] rounded-md border px-3 text-xs font-medium transition-colors ${
+                        outcome === 'won'
+                          ? 'border-vantage-positive bg-vantage-positive/15 text-vantage-positive'
+                          : 'border-vantage-border text-vantage-textDim hover:border-vantage-positive hover:text-vantage-positive'
+                      }`}
+                    >
+                      Won
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setParlayOutcome(parlay.id, 'lost')}
+                      aria-pressed={outcome === 'lost'}
+                      className={`min-h-[36px] rounded-md border px-3 text-xs font-medium transition-colors ${
+                        outcome === 'lost'
+                          ? 'border-vantage-danger bg-vantage-danger/15 text-vantage-danger'
+                          : 'border-vantage-border text-vantage-textDim hover:border-vantage-danger hover:text-vantage-danger'
+                      }`}
+                    >
+                      Lost
+                    </button>
+                    {outcome !== 'pending' && (
+                      <button
+                        type="button"
+                        onClick={() => setParlayOutcome(parlay.id, 'pending')}
+                        className="min-h-[36px] rounded-md border border-vantage-border px-3 text-xs text-vantage-textDim transition-colors hover:text-vantage-text"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
                 </li>
               )
             })}

@@ -1,5 +1,46 @@
 import { api } from './api.js'
 
+// The backend retains the upstream snapshot until an explicit refresh. These
+// small per-account caches avoid even repeating the Django request while the
+// user moves between dashboard pages. They deliberately live only for the
+// current browser session: the Refresh odds button is the single way to ask
+// for new upstream prices.
+const feedCache = new Map()
+const detailCache = new Map()
+let filterConfigRequest = null
+
+function stableKey(params) {
+  return Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${String(value)}`)
+    .join('&')
+}
+
+function accountKey(scope, params) {
+  return `${scope || 'anonymous'}:${stableKey(params)}`
+}
+
+function cachedRequest(cache, key, request) {
+  if (cache.has(key)) return cache.get(key)
+  const pending = request().catch((error) => {
+    cache.delete(key)
+    throw error
+  })
+  cache.set(key, pending)
+  return pending
+}
+
+function clearAccountCache(scope) {
+  const prefix = `${scope || 'anonymous'}:`
+  for (const key of feedCache.keys()) {
+    if (key.startsWith(prefix)) feedCache.delete(key)
+  }
+  for (const key of detailCache.keys()) {
+    if (key.startsWith(prefix)) detailCache.delete(key)
+  }
+}
+
 /**
  * EV Finder data access. Backend-driven only — there is deliberately no mock,
  * seeded, or fallback data here. If the API is unavailable the UI shows its
@@ -49,20 +90,33 @@ import { api } from './api.js'
  *   }
  */
 
-export function getOpportunities(params = {}) {
-  return api.get('/opportunities', params)
+export function getOpportunities(params = {}, cacheScope) {
+  const { refresh, ...query } = params
+  const scope = cacheScope || 'anonymous'
+  if (refresh === true || refresh === 'true') clearAccountCache(scope)
+  const key = accountKey(scope, query)
+  return cachedRequest(feedCache, key, () =>
+    api.get('/opportunities', { ...query, refresh: refresh ? 'true' : undefined })
+  )
 }
 
 export function getOpportunityById(id) {
   return api.get(`/opportunities/${id}`)
 }
 
-export function getOpportunityDetail(id) {
-  return api.get(`/opportunities/${id}/detail`)
+export function getOpportunityDetail(id, cacheScope) {
+  const scope = cacheScope || 'anonymous'
+  return cachedRequest(detailCache, `${scope}:${id}`, () => api.get(`/opportunities/${id}/detail`))
 }
 
 export function getFilterConfig() {
-  return api.get('/filters')
+  if (!filterConfigRequest) {
+    filterConfigRequest = api.get('/filters').catch((error) => {
+      filterConfigRequest = null
+      throw error
+    })
+  }
+  return filterConfigRequest
 }
 
 export function getAccount() {

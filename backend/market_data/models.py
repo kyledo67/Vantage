@@ -69,3 +69,44 @@ class UserProfile(models.Model):
     @property
     def has_verified_residence(self):
         return self.is_age_verified and bool(self.residence_country_code)
+
+
+class SavedParlay(models.Model):
+    """A user's saved hypothetical parlay analysis.
+
+    The owner is the authenticated user's existing Supabase-backed profile.
+    No order, payment, or third-party-market credentials are recorded here.
+    """
+
+    class Outcome(models.TextChoices):
+        PENDING = "pending", "Pending"
+        WON = "won", "Won"
+        LOST = "lost", "Lost"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    owner = models.ForeignKey(
+        UserProfile,
+        on_delete=models.CASCADE,
+        related_name="saved_parlays",
+        db_column="owner_uid",
+    )
+    name = models.CharField(max_length=120, default="Untitled parlay")
+    selections = models.JSONField(default=list)
+    estimated_edge = models.CharField(max_length=32, blank=True)
+    estimated_chance = models.CharField(max_length=32, blank=True)
+    position_sizing = models.JSONField(default=dict)
+    outcome = models.CharField(
+        max_length=10,
+        choices=Outcome.choices,
+        default=Outcome.PENDING,
+    )
+    settled_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "saved_parlays"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.owner_id}: {self.name}"

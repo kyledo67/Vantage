@@ -168,7 +168,7 @@ MARKET_DATA_COST_ALLOWANCE_PERCENT = env.float(
     "MARKET_DATA_COST_ALLOWANCE_PERCENT", default=1.0
 )
 MARKET_DATA_KELLY_FRACTION = env.float(
-    "MARKET_DATA_KELLY_FRACTION", default=0.5
+    "MARKET_DATA_KELLY_FRACTION", default=0.25
 )
 NESSIE_API_KEY = env("NESSIE_API_KEY", default="")
 NESSIE_API_BASE_URL = env("NESSIE_API_BASE_URL", default="http://api.nessieisreal.com")

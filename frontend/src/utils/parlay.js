@@ -81,8 +81,9 @@ export function computeEstimatedChance(selections) {
 
 /**
  * Combine independent legs and apply the same capped fractional-Kelly policy
- * used by the backend for straight positions. The calculation uses the
- * bankroll, a 2.5% minimum stake, and a 5% maximum slider range.
+ * used by the backend for straight positions. Quarter-Kelly recommendations
+ * vary from 0.5% to 2.5% of bankroll; the user-controlled slider still has
+ * a separate 5% maximum.
  */
 export function computeParlaySizing(selections) {
   if (!selections?.length) return null
@@ -115,18 +116,19 @@ export function computeParlaySizing(selections) {
   const netEdge = Math.max(0, netGrowthMultiple - 1)
   const profitMultiple = combinedDecimalOdds - 1
   const fullKellyFraction = profitMultiple > 0 ? netEdge / profitMultiple : 0
-  const kellyFraction = Math.max(0, Math.min(Number(accountSizing.kellyFraction) || 0.5, 1))
-  const minimumPercent = 2.5
+  const kellyFraction = Math.max(0, Math.min(Number(accountSizing.kellyFraction) || 0.25, 1))
+  const minimumPercent = 0.5
+  const maximumRecommendedPercent = 2.5
   const maximumPercent = 5
   const uncappedPercent = fullKellyFraction * kellyFraction * 100
-  const recommendedPercent = Math.min(maximumPercent, Math.max(minimumPercent, uncappedPercent))
+  const recommendedPercent = Math.min(maximumRecommendedPercent, Math.max(minimumPercent, uncappedPercent))
   const recommendedAmount = floorMoney(bankroll * recommendedPercent / 100)
   const expectedProfit = floorMoney(recommendedAmount * netEdge)
   const profitIfWin = floorMoney(recommendedAmount * profitMultiple)
   const totalPayout = floorMoney(recommendedAmount * combinedDecimalOdds)
 
   return {
-    method: 'Half Kelly',
+    method: 'Quarter Kelly',
     bankroll,
     combinedProbability,
     combinedProbabilityLabel: `${(combinedProbability * 100).toFixed(combinedProbability < 0.01 ? 2 : 1)}%`,
@@ -148,7 +150,7 @@ export function computeParlaySizing(selections) {
     maxPositionPercent: maximumPercent,
     maximumAmount: floorMoney(bankroll * maximumPercent / 100),
     maximumAmountLabel: money(floorMoney(bankroll * maximumPercent / 100)),
-    isCapped: uncappedPercent > maximumPercent + 1e-9,
+    isCapped: uncappedPercent > maximumRecommendedPercent + 1e-9,
     isMinimumApplied: recommendedPercent > uncappedPercent + 1e-9,
   }
 }

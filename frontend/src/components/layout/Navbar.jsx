@@ -157,13 +157,18 @@ export default function Navbar() {
       style={{ opacity: navOpacity, pointerEvents: navOpacity < 0.05 ? 'none' : 'auto' }}
     >
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-20">
-        <Link to="/" className="flex items-center gap-2.5" aria-label="Vantage home">
+        <Link to={isAuthenticated ? '/home' : '/'} className="flex items-center gap-2.5" aria-label="Vantage home">
           <span className="text-xl font-semibold tracking-tight text-vantage-text">
             <span className="text-gradient-lavender">V</span>antage
           </span>
         </Link>
 
         <nav className="hidden items-center gap-10 md:flex" aria-label="Main">
+          {isAuthenticated && (
+            <NavLink to="/home" className={centerLinkClass}>
+              Home
+            </NavLink>
+          )}
           <ProductMenu />
           <NavLink to="/methodology" className={centerLinkClass}>
             <span className="flex items-center gap-2">

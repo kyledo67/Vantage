@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from .authentication import SupabaseAuthentication
 from .clients import MarketDataError
 from .eligibility import serialize_profile_eligibility
-from .models import UserProfile
+from .models import SavedParlay, UserProfile
 from .opportunities import filter_config, opportunity_service
 from .persona import (
     PersonaAPIError,
@@ -19,7 +19,7 @@ from .persona import (
     persona_client,
     verify_persona_signature,
 )
-from .serializers import UserProfileSerializer
+from .serializers import SavedParlaySerializer, UserProfileSerializer
 
 
 PERSONA_PROFILE_STATUS = {
@@ -264,6 +264,53 @@ class SettingsView(APIView):
         return Response(build_settings_response(profile, request.user.email))
 
 
+class SavedParlayListView(APIView):
+    """List and create saved parlays for the authenticated Supabase user only."""
+
+    authentication_classes = [SupabaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_profile(self, request):
+        profile, _ = UserProfile.objects.get_or_create(uid=request.user.id)
+        return profile
+
+    def get(self, request):
+        parlays = SavedParlay.objects.filter(owner=self.get_profile(request))
+        return Response(SavedParlaySerializer(parlays, many=True).data)
+
+    def post(self, request):
+        serializer = SavedParlaySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        parlay = serializer.save(owner=self.get_profile(request))
+        return Response(SavedParlaySerializer(parlay).data, status=status.HTTP_201_CREATED)
+
+
+class SavedParlayDetailView(APIView):
+    """Update or remove exactly one of the requesting user's saved parlays."""
+
+    authentication_classes = [SupabaseAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self, request, parlay_id):
+        return SavedParlay.objects.filter(id=parlay_id, owner_id=request.user.id).first()
+
+    def patch(self, request, parlay_id):
+        parlay = self.get_object(request, parlay_id)
+        if parlay is None:
+            return Response({"detail": "Saved parlay not found."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = SavedParlaySerializer(parlay, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, parlay_id):
+        parlay = self.get_object(request, parlay_id)
+        if parlay is None:
+            return Response({"detail": "Saved parlay not found."}, status=status.HTTP_404_NOT_FOUND)
+        parlay.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class PersonaInquiryView(APIView):
     authentication_classes = [SupabaseAuthentication]
     permission_classes = [IsAuthenticated]
@@ -431,7 +478,13 @@ class OpportunityListView(APIView):
                     **position_sizing_context(request),
                 )
             )
-            response["Cache-Control"] = "no-store"
+            # The frontend also keeps a per-account session cache. This lets
+            # browser caches reuse a normal filtered response briefly while
+            # preserving an explicit `?refresh=true` escape hatch for fresh
+            # upstream prices.
+            response["Cache-Control"] = (
+                "no-store" if force_refresh else "private, max-age=300"
+            )
             return response
         except MarketDataError as exc:
             return Response(

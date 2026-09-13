@@ -93,9 +93,11 @@ MIN_BASELINE_ODDS_RATIO = 0.5
 MAX_BASELINE_ODDS_RATIO = 2.0
 MIN_REFERENCE_PROBABILITY_SUM = 0.9
 MAX_REFERENCE_PROBABILITY_SUM = 1.3
-# Position sizing is deliberately not a profile preference. Kelly determines
-# the recommendation inside a 2.5%–5% bankroll range.
-MIN_RECOMMENDED_POSITION_PERCENT = 2.5
+# Position sizing is deliberately not a profile preference. Quarter Kelly
+# determines the recommendation inside a conservative 0.5%–2.5% range; a
+# user may still move the parlay slider as high as 5% of bankroll.
+MIN_RECOMMENDED_POSITION_PERCENT = 0.5
+MAX_RECOMMENDED_POSITION_PERCENT = 2.5
 MAX_POSITION_PERCENT = 5.0
 
 
@@ -452,10 +454,7 @@ def probability_aware_evaluation(fair_probability, decimal_odds, net_ev_percent)
     profit_multiple = max(0.0, float(decimal_odds) - 1.0)
     net_edge = max(0.0, float(net_ev_percent) / 100.0)
     full_kelly = min(1.0, net_edge / profit_multiple) if profit_multiple else 0.0
-    kelly_fraction = max(
-        0.0, min(float(settings.MARKET_DATA_KELLY_FRACTION), 1.0)
-    )
-    half_kelly = full_kelly * kelly_fraction
+    half_kelly = full_kelly * 0.5
     quarter_kelly = full_kelly * 0.25
 
     if probability < 0.25:
@@ -501,7 +500,8 @@ def personalized_position_sizing(
 
     Full Kelly maximizes long-run logarithmic bankroll growth for a correctly
     estimated binary outcome. Vantage uses the configured fraction of Kelly
-    and constrains it to Vantage's 2.5%–5% bankroll range.
+    and constrains quarter-Kelly recommendations to 0.5%–2.5% of bankroll.
+    The separate maximum is 5% for users who deliberately move the slider.
     """
 
     evaluation = opportunity.get("evaluation") or {}
@@ -514,10 +514,8 @@ def personalized_position_sizing(
         0.0, min(float(settings.MARKET_DATA_KELLY_FRACTION), 1.0)
     )
     uncapped_percent = full_kelly_percent * kelly_fraction
-    recommended_percent = max(
-        MIN_RECOMMENDED_POSITION_PERCENT, uncapped_percent
-    )
-    recommended_percent = min(recommended_percent, MAX_POSITION_PERCENT)
+    recommended_percent = max(MIN_RECOMMENDED_POSITION_PERCENT, uncapped_percent)
+    recommended_percent = min(recommended_percent, MAX_RECOMMENDED_POSITION_PERCENT)
     maximum_percent = MAX_POSITION_PERCENT
 
     try:
@@ -554,13 +552,13 @@ def personalized_position_sizing(
     )
 
     return {
-        "method": "Half Kelly",
+        "method": "Quarter Kelly",
         "kellyFraction": round(kelly_fraction, 2),
         "fullKellyPercent": round(full_kelly_percent, 2),
         "uncappedPercent": round(uncapped_percent, 2),
         "recommendedPercent": round(recommended_percent, 2),
         "maxPositionPercent": round(maximum_percent, 2),
-        "isCapped": uncapped_percent > MAX_POSITION_PERCENT + 1e-9,
+        "isCapped": uncapped_percent > MAX_RECOMMENDED_POSITION_PERCENT + 1e-9,
         "isMinimumApplied": recommended_percent > uncapped_percent + 1e-9,
         "isConfigured": bankroll_value > 0,
         "bankroll": round(bankroll_value, 2),

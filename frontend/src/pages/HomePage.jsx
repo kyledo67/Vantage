@@ -1,10 +1,8 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAsync } from '../hooks/useAsync.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useParlays } from '../context/ParlayContext.jsx'
 import { getHomeClv, CLV_PERIODS } from '../services/home.js'
-import { Skeleton } from '../components/dashboard/atoms.jsx'
 import { ProgressRing, Sparkline, BreakdownRow } from '../components/dashboard/HomeWidgets.jsx'
 
 const s = { stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }
@@ -104,15 +102,13 @@ function GetStartedCard({ item }) {
 }
 
 /**
- * There's no real bet-placement/settlement backend — the parlay builder is
- * the only record of activity that actually exists (see HistoryPage.jsx,
- * same reasoning), so this reads from the same saved-parlay data instead of
- * the unimplemented /home/overview endpoint, which always came back zeroed.
+ * There's no real bet-placement backend. This reads the authenticated user's
+ * saved-parlay analysis from the same source as History instead of the
+ * unimplemented /home/overview endpoint, which always came back zeroed.
  * The ring shows the average *estimated* chance of hitting across saved
  * parlays (each parlay already carries one, from BuildParlayModal's
  * computeEstimatedChance) rather than a win *rate* — a hypothetical parlay
- * is never graded, so there's no real outcome to compute a rate from, but
- * there is a probability estimate to show.
+ * has a probability estimate captured at save time.
  */
 function BetOverviewWidget() {
   const { savedParlays } = useParlays()
@@ -197,8 +193,14 @@ function BetOverviewWidget() {
 
 function ClvWidget() {
   const [period, setPeriod] = useState('7d')
-  const clv = useAsync(() => getHomeClv(period), [period])
-  const data = clv.data
+  const { savedParlays } = useParlays()
+  const data = useMemo(() => getHomeClv(savedParlays, period), [savedParlays, period])
+  const hasSettledParlays = data.settledCount > 0
+  const netProfitLabel = data.netProfit.toLocaleString(undefined, {
+    style: 'currency',
+    currency: 'USD',
+    maximumFractionDigits: 2,
+  })
 
   return (
     <div className="flex flex-col gap-5 rounded-xl border border-vantage-border bg-gradient-to-b from-vantage-surface to-vantage-surfaceAlt p-6">
@@ -207,7 +209,7 @@ function ClvWidget() {
           <h2 className="text-lg font-semibold text-vantage-text">Closing line value</h2>
           <span
             className="flex h-5 w-5 items-center justify-center rounded-full border border-vantage-border text-xs text-vantage-textDim"
-            title="CLV compares your bet price to the market's final price before close — the strongest long-run predictor of beating the market."
+            title="This app does not receive final closing prices, so this is an estimated CLV proxy from the saved sharp-market edge. Wins and losses are tracked separately as net profit."
           >
             ?
           </span>
@@ -230,28 +232,33 @@ function ClvWidget() {
         </div>
       </div>
 
-      {clv.status === 'loading' || clv.status === 'idle' ? (
-        <Skeleton className="h-32 w-full" />
-      ) : clv.status === 'error' ? (
-        <p className="text-sm text-vantage-textDim">Couldn’t load your CLV data.</p>
+      {!hasSettledParlays ? (
+        <div className="flex min-h-[128px] flex-col justify-center gap-2 rounded-lg border border-dashed border-vantage-border px-5">
+          <p className="text-sm text-vantage-textDim">No marked results in this period yet.</p>
+          <Link to="/history" className="w-fit text-sm text-vantage-alert transition-colors hover:text-vantage-accent">
+            Mark a parlay won or lost in History
+          </Link>
+        </div>
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center">
           <div className="flex flex-shrink-0 flex-col items-center gap-1 lg:items-start">
-            <p className="text-3xl font-semibold text-vantage-text sm:text-4xl">
-              {data.currentClvPct > 0 ? '+' : ''}
-              {data.currentClvPct.toFixed(2)}%
+            <p className="text-3xl font-semibold text-vantage-positive sm:text-4xl">
+              {data.estimatedEdgePct > 0 ? '+' : ''}
+              {data.estimatedEdgePct.toFixed(2)}%
             </p>
-            <p className="text-xs text-vantage-textDim">Expected value vs. closing line</p>
+            <p className="text-xs text-vantage-textDim">estimated CLV proxy · {data.settledCount} settled</p>
+            <p className={`text-xs ${data.netProfit >= 0 ? 'text-vantage-positive' : 'text-vantage-danger'}`}>
+              net profit: {data.netProfit > 0 ? '+' : ''}{netProfitLabel}
+            </p>
           </div>
 
           <div className="min-w-0 flex-1">
-            <Sparkline series={data.series} positive={data.currentClvPct >= 0} />
+            <Sparkline series={data.series} positive={data.netProfit >= 0} />
           </div>
 
           <div className="flex w-full flex-col gap-2.5 lg:w-56">
-            <BreakdownRow label="+CLV" pct={data.breakdown.beatingPct} colorClass="bg-vantage-positive text-vantage-positive" />
-            <BreakdownRow label="Even" pct={data.breakdown.evenPct} colorClass="bg-vantage-textDim text-vantage-textDim" />
-            <BreakdownRow label="-CLV" pct={data.breakdown.missingPct} colorClass="bg-vantage-danger text-vantage-danger" />
+            <BreakdownRow label="Won" pct={data.breakdown.winningPct} colorClass="bg-vantage-positive text-vantage-positive" />
+            <BreakdownRow label="Lost" pct={data.breakdown.losingPct} colorClass="bg-vantage-danger text-vantage-danger" />
           </div>
         </div>
       )}
