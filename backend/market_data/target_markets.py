@@ -19,6 +19,12 @@ KALSHI_SERIES = {
         ("KXNFLTOTAL", "totals"),
         ("KXNFLTEAMTOTAL", "team_totals"),
     ),
+    "americanfootball_ncaaf": (
+        ("KXNCAAFGAME", "game"),
+        ("KXNCAAFSPREAD", "spreads"),
+        ("KXNCAAFTOTAL", "totals"),
+        ("KXNCAAFTEAMTOTAL", "team_totals"),
+    ),
     "basketball_nba": (
         ("KXNBAGAME", "game"),
         ("KXNBASPREAD", "spreads"),
@@ -212,7 +218,7 @@ def _parse_time(value):
 def _target_book(platform, markets, link, updated_at):
     return {
         "key": platform,
-        "title": "Kalshi" if platform == "kalshi" else "Polymarket US",
+        "title": "Kalshi" if platform == "kalshi" else "Polymarket",
         "stale_seconds": 0,
         "last_update": updated_at,
         "link": link,
@@ -589,7 +595,7 @@ def normalize_polymarket_events(sport, events):
                             "teams": teams,
                             "event_date": event_date,
                             "source": "polymarket",
-                            "source_title": "Polymarket US",
+                            "source_title": "Polymarket",
                             "player_name": named_team,
                             "market_key": "team_totals",
                             "market_label": "Team Total",
@@ -656,7 +662,7 @@ def normalize_polymarket_events(sport, events):
                         "teams": teams,
                         "event_date": event_date,
                         "source": "polymarket",
-                        "source_title": "Polymarket US",
+                        "source_title": "Polymarket",
                         "player_name": f"{teams[0]} vs {teams[1]}",
                         "market_key": canonical_type,
                         "market_label": "Both Teams To Score",

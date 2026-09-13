@@ -45,7 +45,7 @@ export const mockOpportunities = [
     liquidity: 'moderate',
     spread: 0.04,
     explanation:
-      'Polymarket US currently prices this outcome at 38%. A weighted consensus of major sportsbooks implies about 44% after removing margin. Pinnacle was not available for this market.',
+      'Polymarket currently prices this outcome at 38%. A weighted consensus of major sportsbooks implies about 44% after removing margin. Pinnacle was not available for this market.',
   },
   {
     id: 'kalshi-mahomes-pass-tds',

@@ -11,17 +11,14 @@ from django.conf import settings
 from django.core.cache import cache
 
 from .clients import (
-    KalshiAPIClient,
     MarketDataError,
     ParlayAPIClient,
     PolymarketAPIClient,
     PropLineAPIClient,
 )
 from .target_markets import (
-    KALSHI_SERIES,
     POLYMARKET_LEAGUES,
     merge_direct_targets,
-    normalize_kalshi_events,
     normalize_polymarket_events,
 )
 
@@ -29,12 +26,15 @@ from .target_markets import (
 SPORTS = {
     "baseball_mlb": {"label": "MLB", "short": "mlb"},
     "americanfootball_nfl": {"label": "NFL", "short": "nfl"},
-    "basketball_nba": {"label": "NBA", "short": "nba"},
-    "icehockey_nhl": {"label": "NHL", "short": "nhl"},
+    "americanfootball_ncaaf": {"label": "College Football", "short": "ncaaf"},
     "basketball_wnba": {"label": "WNBA", "short": "wnba"},
+    "icehockey_nhl": {"label": "NHL", "short": "nhl"},
     "soccer_epl": {"label": "EPL", "short": "epl"},
 }
-TARGET_BOOKS = {"kalshi": "Kalshi", "polymarket": "Polymarket US"}
+TARGET_BOOKS = {
+    "kalshi": "Kalshi",
+    "polymarket": "Polymarket",
+}
 REFERENCE_WEIGHTS = {
     "pinnacle": 5.0,
     "fanduel": 4.0,
@@ -61,7 +61,6 @@ REFERENCE_WEIGHTS = {
     "prizepicks": 1.0,
     "kalshi": 0.75,
     "polymarket": 0.75,
-    "robinhood": 0.75,
 }
 SOURCE_ALIASES = {
     "betonlineag": "betonline",
@@ -156,6 +155,16 @@ def _same_point(left, right):
 def _source_key(row):
     key = str(row.get("source") or row.get("bookmaker") or "").lower()
     return SOURCE_ALIASES.get(key, key)
+
+
+def _market_url(platform, *candidates):
+    """Return an executable market URL, keeping Polymarket on its US site."""
+    url = next((value for value in candidates if value), None)
+    if platform == "polymarket":
+        if url and "polymarket.us" in str(url).lower():
+            return url
+        return "https://polymarket.us/sports"
+    return url
 
 
 def _parse_time(value):
@@ -278,6 +287,8 @@ def _collect_references(target, rows, side):
     for candidate in rows:
         source = _source_key(candidate)
         if source == target_source or source not in REFERENCE_WEIGHTS:
+            continue
+        if candidate.get("mirrors_source") == target_source:
             continue
         if not _row_is_current(candidate) or not _same_prop(target, candidate):
             continue
@@ -683,10 +694,11 @@ def build_prop_opportunities(rows):
                     "platform": {"name": platform_title},
                     "action": {
                         "platform": platform,
-                        "marketUrl": (
-                            target.get(f"{side}_url")
-                            or target.get("url")
-                            or target.get("link")
+                        "marketUrl": _market_url(
+                            platform,
+                            target.get(f"{side}_url"),
+                            target.get("url"),
+                            target.get("link"),
                         ),
                         "comboPrefillSupported": False,
                     },
@@ -772,10 +784,11 @@ def build_prop_opportunities(rows):
                             },
                         ],
                         "updatedAt": _row_updated_at(target),
-                        "sourceUrl": (
-                            target.get(f"{side}_url")
-                            or target.get("url")
-                            or target.get("link")
+                        "sourceUrl": _market_url(
+                            platform,
+                            target.get(f"{side}_url"),
+                            target.get("url"),
+                            target.get("link"),
                         ),
                         "disclaimer": "Informational estimate. Prices change and results are not guaranteed.",
                     },
@@ -902,7 +915,7 @@ def _collect_game_references(target_market, target_outcome, books, target_platfo
         if source == target_platform:
             continue
         book = books.get(source)
-        if not book:
+        if not book or book.get("mirrors_source") == target_platform:
             continue
         reference = _find_game_reference(target_market, target_outcome, source, book)
         if reference:
@@ -1037,10 +1050,11 @@ def build_game_opportunities(events):
                             "platform": {"name": platform_title},
                             "action": {
                                 "platform": platform,
-                                "marketUrl": (
-                                    outcome.get("url")
-                                    or market.get("url")
-                                    or target_book.get("link")
+                                "marketUrl": _market_url(
+                                    platform,
+                                    outcome.get("url"),
+                                    market.get("url"),
+                                    target_book.get("link"),
                                 ),
                                 "comboPrefillSupported": False,
                             },
@@ -1130,10 +1144,11 @@ def build_game_opportunities(events):
                                     },
                                 ],
                                 "updatedAt": updated_at,
-                                "sourceUrl": (
-                                    outcome.get("url")
-                                    or market.get("url")
-                                    or target_book.get("link")
+                                "sourceUrl": _market_url(
+                                    platform,
+                                    outcome.get("url"),
+                                    market.get("url"),
+                                    target_book.get("link"),
                                 ),
                                 "disclaimer": "Informational estimate. Prices change and results are not guaranteed.",
                             },
@@ -1143,7 +1158,7 @@ def build_game_opportunities(events):
 
 
 class OpportunityService:
-    cache_key = "market_data:opportunities:half-kelly:v12"
+    cache_key = "market_data:opportunities:targeted-v15"
     _refresh_lock = Lock()
 
     def __init__(
@@ -1155,17 +1170,9 @@ class OpportunityService:
     ):
         supplied_client = client is not None
         self.client = client or ParlayAPIClient()
-        # Unit-test and caller-supplied Parlay clients remain isolated unless
-        # target clients are explicitly supplied. The module singleton below
-        # receives all three live clients.
-        self.kalshi_client = kalshi_client if supplied_client else (
-            kalshi_client or KalshiAPIClient()
-        )
         self.polymarket_client = polymarket_client if supplied_client else (
             polymarket_client or PolymarketAPIClient()
         )
-        # PropLine is optional so a missing key never prevents the finder from
-        # serving the direct Kalshi-game fallback and Parlay references.
         self.propline_client = propline_client if supplied_client else (
             propline_client
             or (PropLineAPIClient() if settings.PROPLINE_API_KEY else None)
@@ -1178,161 +1185,95 @@ class OpportunityService:
         direct_prop_targets = []
         loaded_sports = []
         failures = []
-
         sports = [sport for sport in settings.MARKET_DATA_SPORTS if sport in SPORTS]
 
-        def load_parlay_sport(sport):
+        def load_sport(sport):
             result = {"sport": sport, "props": [], "games": [], "failures": []}
             try:
-                sport_rows = self.client.get_props(sport)
+                result["props"].extend(self.client.get_props(sport))
             except MarketDataError as exc:
-                result["failures"].append(
-                    {"sport": sport, "feed": "props", "error": str(exc)}
-                )
-            else:
-                result["props"].extend(
-                    row
-                    for row in sport_rows
-                    if isinstance(row, dict)
-                    and (not row.get("sport_key") or row.get("sport_key") == sport)
-                )
+                result["failures"].append({"sport": sport, "feed": "reference_props", "error": str(exc)})
             try:
-                sport_events = self.client.get_game_odds(sport)
+                result["games"].extend(self.client.get_game_odds(sport))
             except MarketDataError as exc:
-                result["failures"].append(
-                    {"sport": sport, "feed": "game_odds", "error": str(exc)}
-                )
-            else:
-                result["games"].extend(
-                    event
-                    for event in sport_events
-                    if isinstance(event, dict)
-                    and (not event.get("sport_key") or event.get("sport_key") == sport)
-                )
+                result["failures"].append({"sport": sport, "feed": "reference_game_odds", "error": str(exc)})
             if self.propline_client:
                 try:
-                    kalshi_prop_rows = self.propline_client.get_kalshi_props(sport)
-                except MarketDataError as exc:
-                    # Keep a usable snapshot when PropLine is temporarily down;
-                    # the direct Kalshi client continues to supply game markets.
-                    result["failures"].append(
-                        {
-                            "sport": sport,
-                            "feed": "propline_kalshi_props",
-                            "error": str(exc),
-                        }
-                    )
-                else:
-                    result["props"].extend(
-                        row
-                        for row in kalshi_prop_rows
-                        if isinstance(row, dict)
-                        and (not row.get("sport_key") or row.get("sport_key") == sport)
-                    )
-                try:
-                    kalshi_game_events = self.propline_client.get_kalshi_game_odds(
-                        sport
-                    )
-                except MarketDataError as exc:
-                    result["failures"].append(
-                        {
-                            "sport": sport,
-                            "feed": "propline_kalshi_game_odds",
-                            "error": str(exc),
-                        }
-                    )
-                else:
+                    # Load compact game boards before event-level prop boards.
+                    # A game board is one request and includes Kalshi plus all
+                    # available cross-book references; it must not be starved
+                    # by the much more expensive prop scan on the free tier.
                     result["games"].extend(
-                        event
-                        for event in kalshi_game_events
-                        if isinstance(event, dict)
-                        and (not event.get("sport_key") or event.get("sport_key") == sport)
+                        self.propline_client.get_game_odds(sport)
                     )
+                except MarketDataError as exc:
+                    result["failures"].append({"sport": sport, "feed": "propline_game_odds", "error": str(exc)})
+                try:
+                    # PropLine normalizes Kalshi and its cross-book prices into
+                    # the *same* event/prop records.  Requesting only Kalshi
+                    # here left its target rows isolated from every sharp
+                    # reference, so no Kalshi opportunity could satisfy the
+                    # consensus rules.  Keep the whole PropLine board, then
+                    # select Kalshi (or the disclosed demo presentation) as
+                    # the executable target during opportunity construction.
+                    result["props"].extend(
+                        self.propline_client.get_props(sport)
+                    )
+                except MarketDataError as exc:
+                    result["failures"].append({"sport": sport, "feed": "propline_props", "error": str(exc)})
             return result
 
-        # Three concurrent sports keep refresh latency practical without a
-        # large free-tier request burst. Each sport still performs props then
-        # game odds in order.
         with ThreadPoolExecutor(max_workers=min(3, max(1, len(sports)))) as executor:
-            for result in executor.map(load_parlay_sport, sports):
-                prop_rows.extend(result["props"])
-                game_events.extend(result["games"])
+            for result in executor.map(load_sport, sports):
+                # ParlayAPI is reference-only. Ignore a target platform if it
+                # appears in an upstream response despite the requested filter.
+                prop_rows.extend(
+                    row for row in result["props"]
+                    if isinstance(row, dict)
+                )
+                game_events.extend(event for event in result["games"] if isinstance(event, dict))
                 failures.extend(result["failures"])
                 if result["props"] or result["games"]:
                     loaded_sports.append(result["sport"])
 
         target_jobs = []
-        # A configured PropLine client is the sole Kalshi feed. The direct
-        # public client remains a fallback for a local setup without its key.
-        if self.kalshi_client and not self.propline_client:
-            target_jobs.extend(
-                ("kalshi", sport, series_ticker, scope)
-                for sport in sports
-                for series_ticker, scope in KALSHI_SERIES.get(sport, ())
-            )
         if self.polymarket_client:
             target_jobs.extend(
-                ("polymarket", sport, league_slug, None)
+                (sport, league_slug)
                 for sport in sports
                 if (league_slug := POLYMARKET_LEAGUES.get(sport))
             )
 
-        def load_target(job):
-            provider, sport, identifier, scope = job
-            if provider == "kalshi":
-                events = self.kalshi_client.get_events(identifier)
-                games, props = normalize_kalshi_events(sport, scope, events)
-            else:
-                events = self.polymarket_client.get_events(identifier)
-                games, props = normalize_polymarket_events(sport, events)
-            return games, props
+        def load_polymarket_target(job):
+            sport, league_slug = job
+            events = self.polymarket_client.get_events(league_slug)
+            return normalize_polymarket_events(sport, events)
 
-        # These endpoints are public and do not consume Parlay credits, so
-        # independent series can be read together.
-        with ThreadPoolExecutor(
-            max_workers=min(8, max(1, len(target_jobs)))
-        ) as executor:
+        with ThreadPoolExecutor(max_workers=min(6, max(1, len(target_jobs)))) as executor:
             future_jobs = {
-                executor.submit(load_target, job): job for job in target_jobs
+                executor.submit(load_polymarket_target, job): job for job in target_jobs
             }
             for future in as_completed(future_jobs):
-                provider, sport, identifier, _ = future_jobs[future]
+                sport, league_slug = future_jobs[future]
                 try:
-                    game_targets, prop_targets = future.result()
+                    games, props = future.result()
                 except MarketDataError as exc:
-                    failures.append(
-                        {
-                            "sport": sport,
-                            "feed": f"{provider}:{identifier}",
-                            "error": str(exc),
-                        }
-                    )
+                    failures.append({"sport": sport, "feed": f"polymarket:{league_slug}", "error": str(exc)})
                     continue
-                direct_game_targets.extend(game_targets)
-                direct_prop_targets.extend(prop_targets)
+                direct_game_targets.extend(games)
+                direct_prop_targets.extend(props)
 
         if not loaded_sports and failures:
             raise MarketDataError(failures[0]["error"])
 
-        # ParlayAPI may still label rows from the international Polymarket
-        # product as "polymarket". When the U.S. gateway client is active,
-        # remove those rows before merging so every target quote and link comes
-        # from Polymarket US itself. Direct U.S. rows are appended below and can
-        # still act as references for matching Kalshi opportunities.
-        if self.polymarket_client:
-            prop_rows = [
-                row for row in prop_rows if _source_key(row) != "polymarket"
+        # The US gateway is the canonical Polymarket target source; Parlay rows
+        # remain reference prices only.
+        prop_rows = [row for row in prop_rows if _source_key(row) != "polymarket"]
+        for event in game_events:
+            event["bookmakers"] = [
+                book for book in event.get("bookmakers", [])
+                if _source_key(book) != "polymarket"
             ]
-            for event in game_events:
-                event["bookmakers"] = [
-                    book
-                    for book in event.get("bookmakers", [])
-                    if SOURCE_ALIASES.get(
-                        str(book.get("key") or "").lower(),
-                        str(book.get("key") or "").lower(),
-                    )
-                    != "polymarket"
-                ]
 
         game_events, prop_rows = merge_direct_targets(
             game_events,
@@ -1359,8 +1300,6 @@ class OpportunityService:
             "failed_sports": sorted({item["sport"] for item in failures}),
             "opportunities": opportunities,
         }
-        # No timeout: a new upstream request happens only on an explicit refresh,
-        # or once after a backend restart when no snapshot exists yet.
         cache.set(self.cache_key, snapshot, timeout=None)
         return snapshot
 
@@ -1426,7 +1365,7 @@ class OpportunityService:
             "live": {
                 "isLive": snapshot["is_complete"],
                 "updatedAt": snapshot["updated_at"],
-                "source": "PropLine Kalshi + ParlayAPI (Robinhood and references) + Polymarket US",
+                "source": "PropLine Kalshi + ParlayAPI reference consensus + Polymarket",
                 "sportsLoaded": snapshot["loaded_sports"],
                 "sportsFailed": snapshot["failed_sports"],
             },
@@ -1487,7 +1426,7 @@ def filter_config():
                 "label": "All platforms",
                 "options": [
                     {"value": "kalshi", "label": "Kalshi"},
-                    {"value": "polymarket", "label": "Polymarket US"},
+                    {"value": "polymarket", "label": "Polymarket"},
                 ],
             },
             {
@@ -1526,7 +1465,6 @@ def filter_config():
 
 
 opportunity_service = OpportunityService(
-    kalshi_client=KalshiAPIClient(),
     polymarket_client=PolymarketAPIClient(),
     propline_client=PropLineAPIClient() if settings.PROPLINE_API_KEY else None,
 )

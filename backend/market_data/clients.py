@@ -119,16 +119,17 @@ class PolymarketAPIClient(PublicMarketClient):
 
 
 class PropLineAPIClient(PublicMarketClient):
-    """Read Kalshi player props from PropLine's normalized odds feed.
-
-    PropLine serves props per event. We intentionally request only Kalshi so
-    ParlayAPI remains the source for all comparison books, including Robinhood.
-    """
+    """Read current Kalshi, Polymarket, and sportsbook odds from PropLine."""
 
     provider_name = "PropLine"
 
     def __init__(self, session=None, sleep=time.sleep):
-        super().__init__(settings.PROPLINE_API_BASE_URL, session=session, sleep=sleep)
+        base_url = settings.PROPLINE_API_BASE_URL.rstrip("/")
+        # Correct the common accidental `/v1p` suffix without masking the
+        # configured canonical URL (`https://api.prop-line.com/v1`).
+        if base_url.endswith("/v1p"):
+            base_url = base_url[:-1]
+        super().__init__(base_url, session=session, sleep=sleep)
         self.api_key = settings.PROPLINE_API_KEY
 
     @property
@@ -176,16 +177,39 @@ class PropLineAPIClient(PublicMarketClient):
         except ValueError as exc:
             raise MarketDataError("PropLine returned invalid JSON.") from exc
 
-    def get_kalshi_props(self, sport):
-        """Return normalized two-sided Kalshi prop rows for one sport."""
-        events_payload = self._get(f"/sports/{sport}/events")
-        if isinstance(events_payload, dict):
-            events = events_payload.get("events") or events_payload.get("data")
-        else:
-            events = events_payload
+    @staticmethod
+    def _events(payload, label):
+        events = payload.get("events") or payload.get("data") if isinstance(payload, dict) else payload
         if not isinstance(events, list):
-            raise MarketDataError("PropLine returned an unexpected events response.")
+            raise MarketDataError(f"PropLine returned an unexpected {label} response.")
+        return events
 
+    def get_props(self, sport):
+        """Return player- and event-prop rows for every available bookmaker."""
+        events = self._events(self._get(f"/sports/{sport}/events"), "events")
+        rows = []
+        for event in events[: settings.MARKET_DATA_PROPLINE_EVENT_LIMIT]:
+            if not isinstance(event, dict) or not event.get("id"):
+                continue
+            payload = self._get(
+                f"/sports/{sport}/events/{event['id']}/odds",
+                params={"includeLinks": "true"},
+            )
+            if isinstance(payload, dict):
+                rows.extend(self._normalize_event_rows(sport, payload))
+        return rows
+
+    def get_game_odds(self, sport):
+        """Return current game markets from every available bookmaker."""
+        payload = self._get(
+            f"/sports/{sport}/odds",
+            params={"markets": "h2h,spreads,totals", "includeLinks": "true"},
+        )
+        return self._events(payload, "game-odds")
+
+    def get_kalshi_props(self, sport):
+        """Return only current Kalshi player- and event-prop rows."""
+        events = self._events(self._get(f"/sports/{sport}/events"), "events")
         rows = []
         for event in events[: settings.MARKET_DATA_PROPLINE_EVENT_LIMIT]:
             if not isinstance(event, dict) or not event.get("id"):
@@ -194,28 +218,23 @@ class PropLineAPIClient(PublicMarketClient):
                 f"/sports/{sport}/events/{event['id']}/odds",
                 params={"bookmakers": "kalshi", "includeLinks": "true"},
             )
-            if not isinstance(payload, dict):
-                continue
-            rows.extend(self._normalize_kalshi_event(sport, payload))
-        return rows
+            if isinstance(payload, dict):
+                rows.extend(self._normalize_event_rows(sport, payload))
+        return [row for row in rows if row.get("source") == "kalshi"]
 
     def get_kalshi_game_odds(self, sport):
-        """Return Kalshi's current moneyline, spread, and total event rows."""
-        payload = self._get(
-            f"/sports/{sport}/odds",
-            params={
-                "markets": "h2h,spreads,totals",
-                "bookmakers": "kalshi",
-                "includeLinks": "true",
-            },
+        """Return only current Kalshi moneyline, spread, and total markets."""
+        events = self._events(
+            self._get(
+                f"/sports/{sport}/odds",
+                params={
+                    "markets": "h2h,spreads,totals",
+                    "bookmakers": "kalshi",
+                    "includeLinks": "true",
+                },
+            ),
+            "game-odds",
         )
-        if isinstance(payload, dict):
-            events = payload.get("events") or payload.get("data")
-        else:
-            events = payload
-        if not isinstance(events, list):
-            raise MarketDataError("PropLine returned an unexpected game-odds response.")
-
         normalized = []
         for event in events:
             if not isinstance(event, dict):
@@ -225,22 +244,18 @@ class PropLineAPIClient(PublicMarketClient):
                 if not isinstance(book, dict) or str(book.get("key") or "").lower() != "kalshi":
                     continue
                 current_book = dict(book)
-                # PropLine returns its observation timestamp on every market;
-                # this converts its current response into the common game shape.
                 current_book["stale_seconds"] = 0
                 books.append(current_book)
             if books:
-                current_event = dict(event)
-                current_event["bookmakers"] = books
-                normalized.append(current_event)
+                normalized.append({**event, "bookmakers": books})
         return normalized
 
     @staticmethod
-    def _normalize_kalshi_event(sport, event):
-        """Pair the Over/Under outcomes that form a Kalshi binary contract."""
+    def _normalize_event_rows(sport, event):
+        """Normalize each available bookmaker into the shared prop-row shape."""
         rows = []
         for book in event.get("bookmakers") or []:
-            if not isinstance(book, dict) or str(book.get("key") or "").lower() != "kalshi":
+            if not isinstance(book, dict) or not book.get("key"):
                 continue
             for market in book.get("markets") or []:
                 if not isinstance(market, dict):
@@ -273,8 +288,8 @@ class PropLineAPIClient(PublicMarketClient):
                             "away_team": event.get("away_team"),
                             "home_team": event.get("home_team"),
                             "commence_time": event.get("commence_time"),
-                            "source": "kalshi",
-                            "source_title": book.get("title") or "Kalshi",
+                            "source": str(book.get("key")).lower(),
+                            "source_title": book.get("title") or str(book.get("key")).title(),
                             "player_name": pair["player"],
                             "market_key": market.get("key"),
                             "market_label": market.get("description") or market.get("key"),
@@ -353,15 +368,13 @@ class ParlayAPIClient:
 
     @staticmethod
     def _requested_bookmakers():
-        """Keep Kalshi on PropLine and always request Robinhood from ParlayAPI."""
-        books = [
-            book
+        """Request only independent sportsbook and exchange references."""
+        targets = {"kalshi", "polymarket"}
+        return ",".join(
+            str(book)
             for book in settings.MARKET_DATA_BOOKMAKERS
-            if str(book).lower() != "kalshi"
-        ]
-        if "robinhood" not in {str(book).lower() for book in books}:
-            books.append("robinhood")
-        return ",".join(books)
+            if str(book).lower() not in targets
+        )
 
     def get_props(self, sport):
         payload = self._get(
@@ -407,4 +420,24 @@ class ParlayAPIClient:
                     return payload[key]
         raise MarketDataError(
             "ParlayAPI returned an unexpected game-odds response."
+        )
+
+    def get_prediction_markets(self, sport):
+        """Return ParlayAPI's Kalshi, Polymarket, and Novig prediction rows.
+
+        Kalshi is not included in ParlayAPI's standard game-odds or player-prop
+        feeds. Its current sports futures live on this prediction-market route.
+        """
+        payload = self._get(
+            f"/prediction-markets/{sport}",
+            params={"sources": "kalshi,polymarket,novig"},
+        )
+        if isinstance(payload, list):
+            return payload
+        if isinstance(payload, dict):
+            for key in ("markets", "results", "data"):
+                if isinstance(payload.get(key), list):
+                    return payload[key]
+        raise MarketDataError(
+            "ParlayAPI returned an unexpected prediction-markets response."
         )

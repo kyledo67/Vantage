@@ -117,9 +117,9 @@ MARKET_DATA_SPORTS = env.list(
     default=[
         "baseball_mlb",
         "americanfootball_nfl",
-        "basketball_nba",
-        "icehockey_nhl",
+        "americanfootball_ncaaf",
         "basketball_wnba",
+        "icehockey_nhl",
         "soccer_epl",
     ],
 )
@@ -127,7 +127,6 @@ MARKET_DATA_BOOKMAKERS = env.list(
     "MARKET_DATA_BOOKMAKERS",
     default=[
         "polymarket",
-        "robinhood",
         "pinnacle",
         "fanduel",
         "novig",
@@ -156,7 +155,7 @@ MARKET_DATA_BOOKMAKERS = env.list(
 MARKET_DATA_MAX_AGE_SECONDS = env.int("MARKET_DATA_MAX_AGE_SECONDS", default=300)
 MARKET_DATA_PROP_LIMIT = env.int("MARKET_DATA_PROP_LIMIT", default=10000)
 MARKET_DATA_PROPLINE_EVENT_LIMIT = env.int(
-    "MARKET_DATA_PROPLINE_EVENT_LIMIT", default=30
+    "MARKET_DATA_PROPLINE_EVENT_LIMIT", default=3
 )
 MARKET_DATA_REQUEST_TIMEOUT_SECONDS = env.int(
     "MARKET_DATA_REQUEST_TIMEOUT_SECONDS", default=15
