@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, OrbitControls, Html, RoundedBox, ContactShadows } from '@react-three/drei'
@@ -126,6 +126,23 @@ function Laptop({ reduceMotion }) {
     phaseStartRef.current = 0 // initialized on the next frame, against the render clock
     setScreenVisible(false)
   }
+
+  // Auto-play the same close/spin/open sequence once whenever this mounts —
+  // i.e. every time the landing page is loaded or navigated to — so the
+  // laptop demonstrates itself instead of relying on a visitor finding the
+  // click-to-spin interaction. Timed just after the hero's own fade-in
+  // (LandingPage's right-column motion.div: 0.7s duration + 0.15s delay)
+  // finishes, so it reads as the next beat, not a jump-cut.
+  useEffect(() => {
+    if (reduceMotion) return undefined
+    const id = setTimeout(() => {
+      if (phaseRef.current !== 'idle') return
+      phaseRef.current = 'closing'
+      phaseStartRef.current = 0
+      setScreenVisible(false)
+    }, 1000)
+    return () => clearTimeout(id)
+  }, [reduceMotion])
 
   useFrame((state) => {
     const lid = lidRef.current
@@ -261,50 +278,57 @@ function Laptop({ reduceMotion }) {
               <ScreenDashboard />
             </Html>
 
-            {/* Layered opportunity card floating in front of the screen */}
+            {/* Layered opportunity card floating just in front of the screen.
+                Rotation is nearly parallel to the lid (a small offset, not
+                the ~16° twist this used to have) so it reads as a card
+                popped slightly off the glass, not one floating askew in
+                space at a mismatched angle. Sizes are custom small pixel
+                values for the same reason as ScreenDashboard: the app's
+                text-xs/text-sm/etc. utilities are sized for the real UI, far
+                too large for a 250px-wide miniature. */}
             <Html
               transform
               distanceFactor={HTML_DISTANCE}
-              position={[1.32, 0.24, 0.5]}
-              rotation={[0.04, -0.28, 0]}
+              position={[1.18, 0.32, 0.16]}
+              rotation={[0.015, -0.06, 0]}
               style={{ pointerEvents: 'none' }}
               zIndexRange={[30, 20]}
             >
               <div
-                className="rounded-xl border border-vantage-border bg-vantage-surfaceAlt p-5"
-                style={{ width: 250, boxShadow: '0 30px 60px -15px rgba(0,0,0,0.85)' }}
+                className="rounded-xl border border-vantage-border bg-vantage-surfaceAlt p-3.5"
+                style={{ width: 200, fontSize: 10, boxShadow: '0 30px 60px -15px rgba(0,0,0,0.85)' }}
                 aria-hidden="true"
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm uppercase tracking-wide text-vantage-textDim">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[9px] uppercase tracking-wide text-vantage-textDim">
                     Kalshi · NYY @ BOS
                   </span>
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-vantage-positive">
+                  <span className="flex flex-shrink-0 items-center gap-1 text-[8px] font-semibold text-vantage-positive">
                     <span className="h-1 w-1 rounded-full bg-vantage-positive" />
                     LIVE
                   </span>
                 </div>
 
-                <div className="mt-2 text-xs font-semibold text-vantage-text">
+                <div className="mt-1.5 text-[10px] font-semibold leading-tight text-vantage-text">
                   Aaron Judge — Over 1.5 TB
                 </div>
 
-                <div className="mt-4 flex items-end justify-between">
+                <div className="mt-2.5 flex items-end justify-between">
                   <div>
-                    <div className="text-xs text-vantage-textDim">Market price</div>
-                    <div className="text-base font-bold leading-tight text-vantage-text">42¢</div>
+                    <div className="text-[8px] text-vantage-textDim">Market price</div>
+                    <div className="text-[13px] font-bold leading-tight text-vantage-text">42¢</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-vantage-textDim">Price advantage</div>
-                    <div className="text-base font-bold leading-tight text-vantage-positive">+5¢</div>
+                    <div className="text-[8px] text-vantage-textDim">Price advantage</div>
+                    <div className="text-[13px] font-bold leading-tight text-vantage-positive">+5¢</div>
                   </div>
                 </div>
 
-                <div className="mt-3 h-1 overflow-hidden rounded-full bg-vantage-raised">
+                <div className="mt-2 h-1 overflow-hidden rounded-full bg-vantage-raised">
                   <div className="h-full w-[68%] rounded-full bg-vantage-accent" />
                 </div>
 
-                <div className="mt-3 inline-block rounded-full px-2.5 py-0.5 text-xs text-vantage-positive">
+                <div className="mt-2 inline-block rounded-full px-2 py-0.5 text-[8px] text-vantage-positive">
                   Confidence: High
                 </div>
               </div>

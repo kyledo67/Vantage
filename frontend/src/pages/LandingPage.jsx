@@ -1,8 +1,9 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { motion, useReducedMotion } from 'framer-motion'
 import LaptopScene from '../components/three/LaptopScene.jsx'
 import HeroRotator from '../components/landing/HeroRotator.jsx'
 import OpportunityCard from '../components/opportunities/OpportunityCard.jsx'
+import InsideVantageSection from '../components/landing/InsideVantageSection.jsx'
 import HeroGlow from '../components/common/HeroGlow.jsx'
 import { mockOpportunities } from '../mocks/mockOpportunities.js'
 
@@ -25,6 +26,7 @@ const trustPoints = [
 
 export default function LandingPage() {
   const reduceMotion = useReducedMotion()
+  const location = useLocation()
   const rise = (delay = 0) => ({
     initial: reduceMotion ? false : { opacity: 0, y: 16 },
     animate: { opacity: 1, y: 0 },
@@ -32,7 +34,12 @@ export default function LandingPage() {
   })
 
   return (
-    <div className="flex flex-col">
+    // Keyed on the navigation entry (not just the path) so clicking back to
+    // "/" while already there — the logo, say — remounts this and replays
+    // every entrance animation (and the laptop's auto-flip below) exactly
+    // like a hard refresh does, instead of silently no-op'ing because the
+    // route didn't change.
+    <div key={location.key} className="flex flex-col">
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
       <section className="relative pb-[72px] pt-[72px] lg:pb-[104px] lg:pt-[88px]">
         <HeroGlow />
@@ -143,8 +150,8 @@ export default function LandingPage() {
           <div className="flex flex-col items-center justify-center gap-2.5 rounded-lg border border-dashed border-vantage-positive/30 bg-vantage-positive/5 p-8 text-center">
             <p className="text-base font-medium text-vantage-text">More on the way</p>
             <p className="max-w-xs text-sm leading-relaxed text-vantage-textDim">
-              Vantage is a hackathon MVP — the EV Finder is live today; parlay analysis,
-              watchlists, and more sports are coming next.
+              The EV Finder is live today; parlay analysis, watchlists, insider activity,
+              smart money tracking, and more sports are coming next.
             </p>
             <Link
               to="/ev-finder"
@@ -155,6 +162,8 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      <InsideVantageSection />
     </div>
   )
 }

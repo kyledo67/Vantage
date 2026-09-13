@@ -3,10 +3,11 @@ import ConfidenceBadge from './ConfidenceBadge.jsx'
 import PriceAdvantageTag from './PriceAdvantageTag.jsx'
 import FreshnessIndicator from './FreshnessIndicator.jsx'
 import { formatCents } from '../../utils/format.js'
+import { useAuth } from '../../context/AuthContext.jsx'
 
 export default function OpportunityCard({ opportunity }) {
+  const { isAuthenticated } = useAuth()
   const {
-    id,
     platform,
     event,
     title,
@@ -19,9 +20,14 @@ export default function OpportunityCard({ opportunity }) {
     quoteUpdatedAt,
   } = opportunity
 
+  // This card only ever shows mock/sample data (see LandingPage's
+  // heroCard), so there's no real opportunity id to deep-link to — instead
+  // it sends you to the real EV Finder, or to log in first if you're not
+  // signed in, same as every other guarded destination in the app.
   return (
     <Link
-      to={`/ev-finder/${id}`}
+      to={isAuthenticated ? '/ev-finder' : '/login'}
+      state={isAuthenticated ? undefined : { from: { pathname: '/ev-finder' } }}
       className="block rounded-lg border border-vantage-border bg-vantage-surface p-6 transition-colors hover:border-vantage-accent/50"
     >
       <div className="flex items-start justify-between gap-5">

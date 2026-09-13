@@ -1,6 +1,7 @@
 // Small building blocks shared across the EV Finder dashboard.
 // Every one of these renders nothing when its backend data is absent —
 // no fallback labels, no placeholder values.
+import { getPlatformLogo } from '../../utils/platformLogos.js'
 
 export function Skeleton({ className = '', ...rest }) {
   return <div className={`skeleton ${className}`} aria-hidden="true" {...rest} />
@@ -25,13 +26,19 @@ export function PlaceholderIcon({ name, className = 'h-4 w-4' }) {
   )
 }
 
-/** Platform chip. Uses a backend icon when supplied, otherwise a placeholder. */
+/**
+ * Platform chip. Uses a backend icon when supplied; otherwise falls back to
+ * a known local logo (utils/platformLogos.js) for recognized sportsbooks/
+ * exchanges, and only drops to the generic colored-initial placeholder for
+ * a platform we don't have a mark for.
+ */
 export function PlatformBadge({ platform }) {
   if (!platform?.name) return null
+  const logo = platform.iconUrl || getPlatformLogo(platform.name)
   return (
     <span className="inline-flex items-center gap-2.5 text-sm text-vantage-text">
-      {platform.iconUrl ? (
-        <img src={platform.iconUrl} alt="" className="h-5 w-5 rounded-sm object-cover" />
+      {logo ? (
+        <img src={logo} alt="" className="h-5 w-5 rounded-sm object-cover" />
       ) : (
         <PlaceholderIcon name={platform.name} className="h-5 w-5" />
       )}
