@@ -26,7 +26,11 @@ import { api } from './api.js'
  *     "ev":        { "label", "value": <number>, "isPositive": <boolean> },
  *     "evaluation": {
  *       "hitProbability", "hitProbabilityLabel", "missProbability",
- *       "tier", "tierLabel", "kellyPercent", "quarterKellyPercent", "rankScore"
+ *       "tier", "tierLabel", "kellyPercent", "halfKellyPercent", "rankScore"
+ *     },
+ *     "positionSizing": {
+ *       "method", "recommendedPercent", "recommendedAmountLabel",
+ *       "expectedProfitLabel", "profitIfWinLabel", "maximumAmountLabel"
  *     },
  *     "hasDetail": <boolean>
  *   }

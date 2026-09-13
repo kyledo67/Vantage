@@ -18,7 +18,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "verification_status",
             "markets",
             "bankroll",
-            "max_position_percent",
             "created_at",
             "updated_at",
         )
@@ -32,11 +31,19 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+        extra_kwargs = {
+            # The authenticated profile POST is an explicit setup flow. A profile
+            # retrieved for onboarding may begin at the model default, but it
+            # cannot be deliberately created without an analysis bankroll.
+            "bankroll": {"required": True},
+        }
 
     def get_eligibility(self, obj):
         return serialize_profile_eligibility(obj)
 
-    def validate_max_position_percent(self, value):
-        if value > 100:
-            raise serializers.ValidationError("Must be no greater than 100 percent.")
+    def validate_bankroll(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Enter a bankroll greater than zero to use position sizing."
+            )
         return value

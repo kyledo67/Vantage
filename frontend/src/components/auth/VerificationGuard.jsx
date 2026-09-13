@@ -11,7 +11,7 @@ import VerificationShell from '../verification/VerificationShell.jsx'
  * — nothing here decides either one itself.
  */
 export default function VerificationGuard({ children }) {
-  const { status, isAgeVerified, eligibility } = useVerification()
+  const { status, isAgeVerified, eligibility, profile } = useVerification()
   const location = useLocation()
 
   if (status === 'loading') {
@@ -50,6 +50,10 @@ export default function VerificationGuard({ children }) {
   }
 
   if (status !== VERIFICATION_STATUS.VERIFIED || !isAgeVerified) {
+    return <Navigate to="/verify" state={{ from: location }} replace />
+  }
+
+  if (!(Number(profile?.bankroll) > 0)) {
     return <Navigate to="/verify" state={{ from: location }} replace />
   }
 
