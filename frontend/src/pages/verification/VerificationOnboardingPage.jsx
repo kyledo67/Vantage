@@ -253,13 +253,19 @@ export default function VerificationOnboardingPage() {
     await updateVerificationProfile({ bankroll })
     const updatedProfile = await refetch()
 
-    if (updatedProfile?.eligibility && !updatedProfile.eligibility.is_eligible) {
+    // Eligibility can only be genuinely determined once Persona has provided
+    // a residence country — before that, the backend's `is_eligible: false`
+    // just means "not verified yet" (see eligibility.py's `_pending` case),
+    // not "your region is blocked". Only trust it here if age/identity is
+    // already verified (e.g. re-submitting bankroll after being verified
+    // elsewhere); otherwise carry on to eligibility → Persona as normal.
+    if (!updatedProfile?.is_age_verified) {
+      setStep('eligibility')
+    } else if (updatedProfile?.eligibility && !updatedProfile.eligibility.is_eligible) {
       setEligibility(updatedProfile.eligibility)
       setStep('unavailable')
-    } else if (updatedProfile?.is_age_verified) {
-      setStep('complete')
     } else {
-      setStep('eligibility')
+      setStep('complete')
     }
   }, [refetch])
 
