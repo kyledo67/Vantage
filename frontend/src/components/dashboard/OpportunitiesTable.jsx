@@ -10,7 +10,7 @@ import { DURATION, EASE, PRESS_BUTTON } from '../../motion/tokens.js'
 const VIRTUALIZE_THRESHOLD = 30
 const ESTIMATED_ROW_HEIGHT = 116
 
-const HEADINGS = ['Event / Selection', 'Market', 'Platform', 'Price', 'Est. hit', 'EV']
+const HEADINGS = ['Event / Selection', 'Market', 'Platform', 'Price', 'Est. hit', 'Rec. bet', 'EV']
 
 function TableHeader() {
   return (
@@ -60,6 +60,7 @@ function TableSkeleton({ rows = 6 }) {
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-3 w-10" />
+            <Skeleton className="h-3 w-16" />
             <Skeleton className="h-3 w-16" />
             <span />
             <span />

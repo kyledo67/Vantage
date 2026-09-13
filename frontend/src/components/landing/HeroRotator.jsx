@@ -7,7 +7,7 @@ const slides = [
   { lead: 'With', headline: 'Positive EV' },
   { lead: 'From', headline: 'Sharp Books' },
   { lead: 'On', headline: 'Live Order Books' },
-  { lead: 'Across', headline: 'Kalshi & Polymarket' },
+  { lead: 'Across', headline: 'Kalshi & Polymarket US' },
 ]
 
 export default function HeroRotator() {

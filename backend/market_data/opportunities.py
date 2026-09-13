@@ -3,7 +3,7 @@ import re
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_DOWN
 from statistics import median
 from threading import Lock
 
@@ -18,7 +18,7 @@ from .clients import (
 )
 from .target_markets import (
     KALSHI_SERIES,
-    POLYMARKET_SERIES,
+    POLYMARKET_LEAGUES,
     merge_direct_targets,
     normalize_kalshi_events,
     normalize_polymarket_events,
@@ -33,7 +33,7 @@ SPORTS = {
     "basketball_wnba": {"label": "WNBA", "short": "wnba"},
     "soccer_epl": {"label": "EPL", "short": "epl"},
 }
-TARGET_BOOKS = {"kalshi": "Kalshi", "polymarket": "Polymarket"}
+TARGET_BOOKS = {"kalshi": "Kalshi", "polymarket": "Polymarket US"}
 REFERENCE_WEIGHTS = {
     "pinnacle": 5.0,
     "fanduel": 4.0,
@@ -92,6 +92,10 @@ MIN_BASELINE_ODDS_RATIO = 0.5
 MAX_BASELINE_ODDS_RATIO = 2.0
 MIN_REFERENCE_PROBABILITY_SUM = 0.9
 MAX_REFERENCE_PROBABILITY_SUM = 1.3
+# Position sizing is deliberately not a profile preference. Kelly determines
+# the recommendation inside a 2.5%–5% bankroll range.
+MIN_RECOMMENDED_POSITION_PERCENT = 2.5
+MAX_POSITION_PERCENT = 5.0
 
 
 def american_implied_probability(price):
@@ -435,6 +439,10 @@ def probability_aware_evaluation(fair_probability, decimal_odds, net_ev_percent)
     profit_multiple = max(0.0, float(decimal_odds) - 1.0)
     net_edge = max(0.0, float(net_ev_percent) / 100.0)
     full_kelly = min(1.0, net_edge / profit_multiple) if profit_multiple else 0.0
+    kelly_fraction = max(
+        0.0, min(float(settings.MARKET_DATA_KELLY_FRACTION), 1.0)
+    )
+    half_kelly = full_kelly * kelly_fraction
     quarter_kelly = full_kelly * 0.25
 
     if probability < 0.25:
@@ -453,8 +461,118 @@ def probability_aware_evaluation(fair_probability, decimal_odds, net_ev_percent)
         "tier": tier,
         "tierLabel": tier_label,
         "kellyPercent": round(full_kelly * 100, 2),
+        "halfKellyPercent": round(half_kelly * 100, 2),
         "quarterKellyPercent": round(quarter_kelly * 100, 2),
         "rankScore": round(full_kelly * 100, 4),
+    }
+
+
+def _money_floor(value):
+    """Round a money value down without letting binary floats lose a cent."""
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, TypeError, ValueError):
+        decimal_value = Decimal("0")
+    return float(
+        max(Decimal("0"), decimal_value).quantize(
+            Decimal("0.01"), rounding=ROUND_DOWN
+        )
+    )
+
+
+def personalized_position_sizing(
+    opportunity,
+    bankroll=None,
+):
+    """Return a capped fractional-Kelly dollar recommendation.
+
+    Full Kelly maximizes long-run logarithmic bankroll growth for a correctly
+    estimated binary outcome. Vantage uses the configured fraction of Kelly
+    and constrains it to Vantage's 2.5%–5% bankroll range.
+    """
+
+    evaluation = opportunity.get("evaluation") or {}
+    try:
+        full_kelly_percent = max(0.0, float(evaluation["kellyPercent"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    kelly_fraction = max(
+        0.0, min(float(settings.MARKET_DATA_KELLY_FRACTION), 1.0)
+    )
+    uncapped_percent = full_kelly_percent * kelly_fraction
+    recommended_percent = max(
+        MIN_RECOMMENDED_POSITION_PERCENT, uncapped_percent
+    )
+    recommended_percent = min(recommended_percent, MAX_POSITION_PERCENT)
+    maximum_percent = MAX_POSITION_PERCENT
+
+    try:
+        bankroll_value = max(0.0, float(bankroll))
+    except (TypeError, ValueError):
+        bankroll_value = 0.0
+
+    decimal_odds = american_decimal_odds(
+        (opportunity.get("price") or {}).get("odds")
+    )
+    try:
+        net_ev = max(0.0, float((opportunity.get("ev") or {})["value"]) / 100.0)
+    except (KeyError, TypeError, ValueError):
+        net_ev = 0.0
+
+    bankroll_decimal = Decimal(str(bankroll_value))
+    recommended_amount = _money_floor(
+        bankroll_decimal * Decimal(str(recommended_percent)) / Decimal("100")
+    )
+    maximum_amount = _money_floor(
+        bankroll_decimal * Decimal(str(maximum_percent)) / Decimal("100")
+    )
+    unit_size = _money_floor(bankroll_decimal * Decimal("0.01"))
+    expected_profit = _money_floor(
+        Decimal(str(recommended_amount)) * Decimal(str(net_ev))
+    )
+    profit_if_win = (
+        _money_floor(
+            Decimal(str(recommended_amount))
+            * (Decimal(str(decimal_odds)) - Decimal("1"))
+        )
+        if decimal_odds is not None
+        else None
+    )
+
+    return {
+        "method": "Half Kelly",
+        "kellyFraction": round(kelly_fraction, 2),
+        "fullKellyPercent": round(full_kelly_percent, 2),
+        "uncappedPercent": round(uncapped_percent, 2),
+        "recommendedPercent": round(recommended_percent, 2),
+        "maxPositionPercent": round(maximum_percent, 2),
+        "isCapped": uncapped_percent > MAX_POSITION_PERCENT + 1e-9,
+        "isMinimumApplied": recommended_percent > uncapped_percent + 1e-9,
+        "isConfigured": bankroll_value > 0,
+        "bankroll": round(bankroll_value, 2),
+        "recommendedAmount": recommended_amount if bankroll_value > 0 else None,
+        "recommendedAmountLabel": (
+            f"${recommended_amount:,.2f}" if bankroll_value > 0 else None
+        ),
+        "maximumAmount": maximum_amount if bankroll_value > 0 else None,
+        "maximumAmountLabel": (
+            f"${maximum_amount:,.2f}" if bankroll_value > 0 else None
+        ),
+        "unitSize": unit_size if bankroll_value > 0 else None,
+        "recommendedUnits": (
+            round(recommended_percent, 2) if bankroll_value > 0 else None
+        ),
+        "expectedProfit": expected_profit if bankroll_value > 0 else None,
+        "expectedProfitLabel": (
+            f"+${expected_profit:,.2f}" if bankroll_value > 0 else None
+        ),
+        "profitIfWin": profit_if_win if bankroll_value > 0 else None,
+        "profitIfWinLabel": (
+            f"+${profit_if_win:,.2f}"
+            if bankroll_value > 0 and profit_if_win is not None
+            else None
+        ),
     }
 
 
@@ -561,6 +679,15 @@ def build_prop_opportunities(rows):
                     },
                     "market": {"title": market_title, "subtitle": line_label},
                     "platform": {"name": platform_title},
+                    "action": {
+                        "platform": platform,
+                        "marketUrl": (
+                            target.get(f"{side}_url")
+                            or target.get("url")
+                            or target.get("link")
+                        ),
+                        "comboPrefillSupported": False,
+                    },
                     "price": {
                         "label": f"{target_cents:.1f}¢ · {target_odds}",
                         "odds": target_price,
@@ -637,23 +764,17 @@ def build_prop_opportunities(rows):
                                 "isPositive": False,
                             },
                             {
-                                "label": "Quarter-Kelly reference",
-                                "value": f"{evaluation['quarterKellyPercent']:.2f}% of bankroll",
-                                "isPositive": False,
-                            },
-                            {
-                                "label": "Target quote",
-                                "value": f"{platform_title} {target_odds}",
-                                "isPositive": False,
-                            },
-                            {
                                 "label": "Consensus sources",
                                 "value": str(len(references)),
                                 "isPositive": False,
                             },
                         ],
                         "updatedAt": _row_updated_at(target),
-                        "sourceUrl": target.get("url") or target.get("link"),
+                        "sourceUrl": (
+                            target.get(f"{side}_url")
+                            or target.get("url")
+                            or target.get("link")
+                        ),
                         "disclaimer": "Informational estimate. Prices change and results are not guaranteed.",
                     },
                 }
@@ -912,6 +1033,15 @@ def build_game_opportunities(events):
                             },
                             "market": {"title": market_title, "subtitle": subtitle},
                             "platform": {"name": platform_title},
+                            "action": {
+                                "platform": platform,
+                                "marketUrl": (
+                                    outcome.get("url")
+                                    or market.get("url")
+                                    or target_book.get("link")
+                                ),
+                                "comboPrefillSupported": False,
+                            },
                             "price": {
                                 "label": f"{target_cents:.1f}¢ · {target_odds}",
                                 "odds": target_price,
@@ -992,26 +1122,17 @@ def build_game_opportunities(events):
                                         "isPositive": False,
                                     },
                                     {
-                                        "label": "Quarter-Kelly reference",
-                                        "value": (
-                                            f"{evaluation['quarterKellyPercent']:.2f}%"
-                                            " of bankroll"
-                                        ),
-                                        "isPositive": False,
-                                    },
-                                    {
-                                        "label": "Target quote",
-                                        "value": f"{platform_title} {target_odds}",
-                                        "isPositive": False,
-                                    },
-                                    {
                                         "label": "Consensus sources",
                                         "value": str(len(references)),
                                         "isPositive": False,
                                     },
                                 ],
                                 "updatedAt": updated_at,
-                                "sourceUrl": target_book.get("link"),
+                                "sourceUrl": (
+                                    outcome.get("url")
+                                    or market.get("url")
+                                    or target_book.get("link")
+                                ),
                                 "disclaimer": "Informational estimate. Prices change and results are not guaranteed.",
                             },
                         }
@@ -1020,7 +1141,7 @@ def build_game_opportunities(events):
 
 
 class OpportunityService:
-    cache_key = "market_data:opportunities:thirty-percent-floor:v9"
+    cache_key = "market_data:opportunities:half-kelly:v11"
     _refresh_lock = Lock()
 
     def __init__(self, client=None, kalshi_client=None, polymarket_client=None):
@@ -1096,9 +1217,9 @@ class OpportunityService:
             )
         if self.polymarket_client:
             target_jobs.extend(
-                ("polymarket", sport, series_id, None)
+                ("polymarket", sport, league_slug, None)
                 for sport in sports
-                if (series_id := POLYMARKET_SERIES.get(sport))
+                if (league_slug := POLYMARKET_LEAGUES.get(sport))
             )
 
         def load_target(job):
@@ -1137,6 +1258,26 @@ class OpportunityService:
 
         if not loaded_sports and failures:
             raise MarketDataError(failures[0]["error"])
+
+        # ParlayAPI may still label rows from the international Polymarket
+        # product as "polymarket". When the U.S. gateway client is active,
+        # remove those rows before merging so every target quote and link comes
+        # from Polymarket US itself. Direct U.S. rows are appended below and can
+        # still act as references for matching Kalshi opportunities.
+        if self.polymarket_client:
+            prop_rows = [
+                row for row in prop_rows if _source_key(row) != "polymarket"
+            ]
+            for event in game_events:
+                event["bookmakers"] = [
+                    book
+                    for book in event.get("bookmakers", [])
+                    if SOURCE_ALIASES.get(
+                        str(book.get("key") or "").lower(),
+                        str(book.get("key") or "").lower(),
+                    )
+                    != "polymarket"
+                ]
 
         game_events, prop_rows = merge_direct_targets(
             game_events,
@@ -1179,7 +1320,12 @@ class OpportunityService:
                     return snapshot
             return self._refresh()
 
-    def list(self, params, force_refresh=False):
+    def list(
+        self,
+        params,
+        force_refresh=False,
+        bankroll=None,
+    ):
         snapshot = self.snapshot(force_refresh=force_refresh)
         platform = params.get("platform", "").lower()
         market_type = params.get("market_type", "").lower()
@@ -1212,26 +1358,64 @@ class OpportunityService:
                 continue
             if item["evaluation"]["hitProbability"] < min_probability:
                 continue
-            results.append({key: value for key, value in item.items() if not key.startswith("_")})
+            result = {
+                key: value for key, value in item.items() if not key.startswith("_")
+            }
+            result["positionSizing"] = personalized_position_sizing(
+                item,
+                bankroll=bankroll,
+            )
+            results.append(result)
 
         return {
             "live": {
                 "isLive": snapshot["is_complete"],
                 "updatedAt": snapshot["updated_at"],
-                "source": "ParlayAPI + Kalshi + Polymarket",
+                "source": "ParlayAPI + Kalshi + Polymarket US",
                 "sportsLoaded": snapshot["loaded_sports"],
                 "sportsFailed": snapshot["failed_sports"],
             },
             "results": results,
         }
 
-    def detail(self, opportunity_id):
+    def detail(
+        self,
+        opportunity_id,
+        bankroll=None,
+    ):
         snapshot = cache.get(self.cache_key)
         if snapshot is None:
             return None
         for item in snapshot["opportunities"]:
             if item["id"] == opportunity_id:
-                return item["_detail"]
+                detail = {
+                    key: value for key, value in item["_detail"].items()
+                }
+                detail["stats"] = list(detail.get("stats") or [])
+                sizing = personalized_position_sizing(
+                    item,
+                    bankroll=bankroll,
+                )
+                detail["positionSizing"] = sizing
+                if sizing and sizing["isConfigured"]:
+                    detail["stats"].extend(
+                        [
+                            {
+                                "label": "Recommended position",
+                                "value": (
+                                    f"{sizing['recommendedAmountLabel']}"
+                                    f" · {sizing['recommendedPercent']:.2f}% bankroll"
+                                ),
+                                "isPositive": False,
+                            },
+                            {
+                                "label": "Expected profit",
+                                "value": sizing["expectedProfitLabel"],
+                                "isPositive": True,
+                            },
+                        ]
+                    )
+                return detail
         return None
 
 
@@ -1248,7 +1432,7 @@ def filter_config():
                 "label": "All platforms",
                 "options": [
                     {"value": "kalshi", "label": "Kalshi"},
-                    {"value": "polymarket", "label": "Polymarket"},
+                    {"value": "polymarket", "label": "Polymarket US"},
                 ],
             },
             {

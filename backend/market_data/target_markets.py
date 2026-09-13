@@ -3,6 +3,7 @@ import re
 from copy import deepcopy
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 
 KALSHI_SERIES = {
@@ -45,13 +46,13 @@ KALSHI_SERIES = {
     ),
 }
 
-POLYMARKET_SERIES = {
-    "baseball_mlb": "3",
-    "americanfootball_nfl": "10187",
-    "basketball_nba": "10345",
-    "icehockey_nhl": "10346",
-    "basketball_wnba": "10105",
-    "soccer_epl": "10188",
+POLYMARKET_LEAGUES = {
+    "baseball_mlb": "mlb",
+    "americanfootball_nfl": "nfl",
+    "basketball_nba": "nba",
+    "icehockey_nhl": "nhl",
+    "basketball_wnba": "wnba",
+    "soccer_epl": "epl",
 }
 
 POLYMARKET_MARKET_ALIASES = {
@@ -211,7 +212,7 @@ def _parse_time(value):
 def _target_book(platform, markets, link, updated_at):
     return {
         "key": platform,
-        "title": "Kalshi" if platform == "kalshi" else "Polymarket",
+        "title": "Kalshi" if platform == "kalshi" else "Polymarket US",
         "stale_seconds": 0,
         "last_update": updated_at,
         "link": link,
@@ -236,7 +237,12 @@ def normalize_kalshi_events(sport, scope, events):
             continue
         event_date = _kalshi_event_date(event)
         series = event.get("series_ticker") or ""
-        link = f"https://kalshi.com/markets/{str(series).lower()}"
+        event_ticker = event.get("event_ticker") or ""
+        link = (
+            f"https://kalshi.com/markets/{str(series).lower()}/{str(event_ticker).lower()}"
+            if series and event_ticker
+            else f"https://kalshi.com/markets/{str(series).lower()}"
+        )
         markets = [
             market
             for market in event.get("markets", [])
@@ -404,18 +410,61 @@ def normalize_kalshi_events(sport, scope, events):
     return game_targets, prop_targets
 
 
-def _polymarket_prices(market):
-    best_ask = _price(market.get("bestAsk"))
-    best_bid = _price(market.get("bestBid"))
-    if best_ask is None or best_bid is None:
-        return None, None
-    return best_ask, 1 - best_bid
+def _polymarket_us_quote(value):
+    if isinstance(value, dict):
+        value = value.get("value")
+    return _price(value)
+
+
+def _polymarket_us_market_url(league, event, market=None, side=None):
+    slug = event.get("slug")
+    if not slug:
+        return "https://polymarket.us/sports"
+    base = f"https://polymarket.us/sports/{league}/{slug}"
+    if not market or not market.get("slug"):
+        return base
+    query = {"marketSlug": market["slug"]}
+    if side and side.get("id") is not None:
+        query["outcomeId"] = side["id"]
+    return f"{base}?{urlencode(query)}"
+
+
+def _polymarket_us_sides(market):
+    sides = []
+    for side in market.get("marketSides", []):
+        if not isinstance(side, dict) or side.get("tradable") is False:
+            continue
+        quote = _polymarket_us_quote(side.get("quote"))
+        price = probability_to_american(quote)
+        if price is not None:
+            sides.append((side, price))
+    return sides
+
+
+def _side_team_name(side):
+    team = side.get("team")
+    return team.get("name") if isinstance(team, dict) else None
+
+
+def _side_point(side, fallback, index):
+    match = re.search(r"[-+]?\d+(?:\.\d+)?", str(side.get("description") or ""))
+    if match:
+        try:
+            return float(match.group(0))
+        except ValueError:
+            pass
+    try:
+        point = float(fallback)
+    except (TypeError, ValueError):
+        return None
+    return point if index == 0 else -point
 
 
 def normalize_polymarket_events(sport, events):
     game_targets = []
     prop_targets = []
     now = datetime.now(timezone.utc).isoformat()
+    league = POLYMARKET_LEAGUES.get(sport, sport)
 
     for event in events:
         if not isinstance(event, dict):
@@ -423,14 +472,9 @@ def normalize_polymarket_events(sport, events):
         teams = _split_teams(event.get("title"))
         if len(teams) != 2:
             continue
-        commence = _parse_time(event.get("endDate"))
+        commence = _parse_time(event.get("startTime") or event.get("startDate"))
         event_date = commence.date() if commence else None
-        slug = event.get("slug")
-        link = (
-            f"https://polymarket.com/event/{slug}"
-            if slug
-            else "https://polymarket.com/sports"
-        )
+        link = _polymarket_us_market_url(league, event)
         h2h_outcomes = []
         direct_markets = []
 
@@ -441,112 +485,193 @@ def normalize_polymarket_events(sport, events):
                 or market.get("active") is False
             ):
                 continue
-            market_type = str(market.get("sportsMarketType") or "")
-            ask_first, ask_second = _polymarket_prices(market)
-            first_price = probability_to_american(ask_first)
-            second_price = probability_to_american(ask_second)
-            if first_price is None or second_price is None:
+            market_type = str(market.get("sportsMarketType") or "").lower()
+            market_type_v2 = str(market.get("sportsMarketTypeV2") or "").upper()
+            sides = _polymarket_us_sides(market)
+            if len(sides) < 2:
                 continue
-            outcomes = _parse_json_list(market.get("outcomes"))
 
-            if market_type == "moneyline":
-                if (
-                    len(outcomes) == 2
-                    and {str(value).lower() for value in outcomes} != {"yes", "no"}
-                ):
-                    h2h_outcomes.extend(
-                        [
-                            {"name": outcomes[0], "price": first_price},
-                            {"name": outcomes[1], "price": second_price},
-                        ]
-                    )
+            if market_type_v2 in {
+                "SPORTS_MARKET_TYPE_MONEYLINE",
+                "SPORTS_MARKET_TYPE_DRAWABLE_OUTCOME",
+            } and ("full_game" in market_type or "full_time" in market_type):
+                named_sides = [
+                    (side, price, _side_team_name(side))
+                    for side, price in sides
+                    if _side_team_name(side)
+                ]
+                unique_teams = {_team_key(name) for _, _, name in named_sides}
+                if len(unique_teams) >= 2:
+                    for side, price, name in named_sides:
+                        h2h_outcomes.append(
+                            {
+                                "name": name,
+                                "price": price,
+                                "url": _polymarket_us_market_url(
+                                    league, event, market, side
+                                ),
+                            }
+                        )
                 else:
+                    long_side = next(
+                        ((side, price) for side, price in sides if side.get("long") is True),
+                        None,
+                    )
+                    if not long_side:
+                        continue
+                    side, price = long_side
                     question = str(market.get("question") or "")
-                    if "end in a draw" in question.lower():
+                    if "draw" in question.lower():
                         selection = "Draw"
                     else:
-                        match = re.search(r"Will\s+(.+?)\s+win\b", question, re.I)
-                        selection = match.group(1).strip() if match else None
+                        selection = _side_team_name(side)
                     if selection:
                         h2h_outcomes.append(
-                            {"name": selection, "price": first_price}
+                            {
+                                "name": selection,
+                                "price": price,
+                                "url": _polymarket_us_market_url(
+                                    league, event, market, side
+                                ),
+                            }
                         )
                 continue
 
-            if (
-                market_type in {"spreads", "totals", "total_corners"}
-                and len(outcomes) == 2
-            ):
-                point = market.get("line")
-                if point is None:
-                    continue
-                if market_type == "spreads":
-                    outcome_points = (float(point), -float(point))
-                    description = "Spread"
-                    key = "spreads"
-                else:
-                    outcome_points = (float(point), float(point))
-                    description = (
-                        "Total Corners" if market_type == "total_corners" else "Total"
+            if market_type_v2 == "SPORTS_MARKET_TYPE_SPREAD" and "full_game" in market_type:
+                outcomes = []
+                for index, (side, price) in enumerate(sides[:2]):
+                    name = _side_team_name(side)
+                    point = _side_point(side, market.get("line"), index)
+                    if not name or point is None:
+                        outcomes = []
+                        break
+                    outcomes.append(
+                        {
+                            "name": name,
+                            "point": point,
+                            "price": price,
+                            "url": _polymarket_us_market_url(
+                                league, event, market, side
+                            ),
+                        }
                     )
-                    key = "totals"
+                if len(outcomes) != 2:
+                    continue
                 direct_markets.append(
                     {
-                        "key": key,
-                        "description": description,
+                        "key": "spreads",
+                        "description": "Spread",
                         "last_update": now,
-                        "outcomes": [
-                            {
-                                "name": outcomes[0],
-                                "point": outcome_points[0],
-                                "price": first_price,
-                            },
-                            {
-                                "name": outcomes[1],
-                                "point": outcome_points[1],
-                                "price": second_price,
-                            },
-                        ],
+                        "url": _polymarket_us_market_url(league, event, market),
+                        "outcomes": outcomes,
                     }
                 )
                 continue
 
-            canonical_type = POLYMARKET_MARKET_ALIASES.get(market_type)
-            if canonical_type and len(outcomes) == 2:
-                if canonical_type == "team_totals":
-                    question = str(market.get("question") or "")
-                    team_match = re.search(
-                        r":\s*(.+?)\s+O/U\s+[-+]?\d", question, re.I
+            if market_type_v2 == "SPORTS_MARKET_TYPE_TOTAL" and "full_game" in market_type:
+                over = next(
+                    ((side, price) for side, price in sides if str(side.get("description") or "").lower() == "over"),
+                    None,
+                )
+                under = next(
+                    ((side, price) for side, price in sides if str(side.get("description") or "").lower() == "under"),
+                    None,
+                )
+                if not over or not under or market.get("line") is None:
+                    continue
+                over_side, over_price = over
+                under_side, under_price = under
+                named_team = _side_team_name(over_side) or _side_team_name(under_side)
+                if named_team:
+                    prop_targets.append(
+                        {
+                            "sport_key": sport,
+                            "teams": teams,
+                            "event_date": event_date,
+                            "source": "polymarket",
+                            "source_title": "Polymarket US",
+                            "player_name": named_team,
+                            "market_key": "team_totals",
+                            "market_label": "Team Total",
+                            "line": market.get("line"),
+                            "over_price": over_price,
+                            "under_price": under_price,
+                            "snapshot_time": now,
+                            "age_seconds": 0,
+                            "url": _polymarket_us_market_url(league, event, market),
+                            "over_url": _polymarket_us_market_url(
+                                league, event, market, over_side
+                            ),
+                            "under_url": _polymarket_us_market_url(
+                                league, event, market, under_side
+                            ),
+                        }
                     )
-                    named_team = team_match.group(1).strip() if team_match else ""
-                    player = next(
-                        (team for team in teams if _team_match(team, named_team)),
-                        None,
-                    )
-                    line = market.get("line")
-                    if not player or line is None:
-                        continue
-                    label = "Team Total"
                 else:
-                    player = f"{teams[0]} vs {teams[1]}"
-                    line = None
-                    label = "Both Teams To Score"
+                    direct_markets.append(
+                        {
+                            "key": "totals",
+                            "description": "Total",
+                            "last_update": now,
+                            "url": _polymarket_us_market_url(league, event, market),
+                            "outcomes": [
+                                {
+                                    "name": "Over",
+                                    "point": float(market["line"]),
+                                    "price": over_price,
+                                    "url": _polymarket_us_market_url(
+                                        league, event, market, over_side
+                                    ),
+                                },
+                                {
+                                    "name": "Under",
+                                    "point": float(market["line"]),
+                                    "price": under_price,
+                                    "url": _polymarket_us_market_url(
+                                        league, event, market, under_side
+                                    ),
+                                },
+                            ],
+                        }
+                    )
+                continue
+
+            canonical_type = POLYMARKET_MARKET_ALIASES.get(market_type)
+            if canonical_type == "both_teams_to_score":
+                yes = next(
+                    ((side, price) for side, price in sides if str(side.get("description") or "").lower() == "yes"),
+                    None,
+                )
+                no = next(
+                    ((side, price) for side, price in sides if str(side.get("description") or "").lower() == "no"),
+                    None,
+                )
+                if not yes or not no:
+                    continue
+                yes_side, yes_price = yes
+                no_side, no_price = no
                 prop_targets.append(
                     {
                         "sport_key": sport,
                         "teams": teams,
                         "event_date": event_date,
                         "source": "polymarket",
-                        "source_title": "Polymarket",
-                        "player_name": player,
+                        "source_title": "Polymarket US",
+                        "player_name": f"{teams[0]} vs {teams[1]}",
                         "market_key": canonical_type,
-                        "market_label": label,
-                        "line": line,
-                        "over_price": first_price,
-                        "under_price": second_price,
+                        "market_label": "Both Teams To Score",
+                        "line": None,
+                        "over_price": yes_price,
+                        "under_price": no_price,
                         "snapshot_time": now,
                         "age_seconds": 0,
-                        "url": link,
+                        "url": _polymarket_us_market_url(league, event, market),
+                        "over_url": _polymarket_us_market_url(
+                            league, event, market, yes_side
+                        ),
+                        "under_url": _polymarket_us_market_url(
+                            league, event, market, no_side
+                        ),
                     }
                 )
 
@@ -558,6 +683,7 @@ def normalize_polymarket_events(sport, events):
                 {
                     "key": "h2h",
                     "last_update": now,
+                    "url": link,
                     "outcomes": list(unique.values()),
                 }
             )

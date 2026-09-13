@@ -17,7 +17,7 @@ import { api } from './api.js'
  *         "policy_checked_on", "disclaimer"
  *       },
  *       "verification_status": "not_started" | "pending" | "verified" | "declined",
- *       "markets", "bankroll", "max_position_percent", "created_at", "updated_at"
+ *       "markets", "bankroll", "created_at", "updated_at"
  *     }
  *   Auto-creates the profile row on first GET — no separate "create" call needed.
  *
@@ -39,7 +39,7 @@ function getVerificationProfile() {
 }
 
 /** Only the fields the serializer allows the frontend to write
- *  (`markets`, `bankroll`, `max_position_percent`) — verification status,
+ *  (`markets`, `bankroll`) — verification status,
  *  age, and residence are Persona/backend-owned. */
 function updateVerificationProfile(patch) {
   return api.patch('/profile', patch)

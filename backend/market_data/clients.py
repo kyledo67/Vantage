@@ -84,37 +84,37 @@ class KalshiAPIClient(PublicMarketClient):
 
 
 class PolymarketAPIClient(PublicMarketClient):
-    provider_name = "Polymarket"
+    provider_name = "Polymarket US"
 
     def __init__(self, session=None, sleep=time.sleep):
         super().__init__(
-            settings.POLYMARKET_GAMMA_API_BASE_URL,
+            settings.POLYMARKET_US_API_BASE_URL,
             session=session,
             sleep=sleep,
         )
 
-    def get_events(self, series_id):
+    def get_events(self, league_slug):
         events = []
         offset = 0
         for _ in range(5):
             payload = self._get(
-                "/events",
+                f"/v2/leagues/{league_slug}/events",
                 params={
-                    "series_id": series_id,
                     "active": "true",
                     "closed": "false",
-                    "limit": 100,
+                    "limit": 1000,
                     "offset": offset,
                 },
             )
-            if not isinstance(payload, list):
+            page = payload.get("events") if isinstance(payload, dict) else None
+            if not isinstance(page, list):
                 raise MarketDataError(
-                    "Polymarket returned an unexpected events response."
+                    "Polymarket US returned an unexpected events response."
                 )
-            events.extend(payload)
-            if len(payload) < 100:
+            events.extend(page)
+            if len(page) < 1000:
                 break
-            offset += len(payload)
+            offset += len(page)
         return events
 
 

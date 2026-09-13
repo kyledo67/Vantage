@@ -2,6 +2,7 @@
 __pycache__/
 .env
 .env.*
+.env *
 !.env.example
 *.py[codz]
 *$py.class

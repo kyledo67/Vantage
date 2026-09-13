@@ -105,11 +105,8 @@ KALSHI_API_BASE_URL = env(
     "KALSHI_API_BASE_URL",
     default="https://api.elections.kalshi.com/trade-api/v2",
 )
-POLYMARKET_GAMMA_API_BASE_URL = env(
-    "POLYMARKET_GAMMA_API_BASE_URL", default="https://gamma-api.polymarket.com"
-)
-POLYMARKET_CLOB_API_BASE_URL = env(
-    "POLYMARKET_CLOB_API_BASE_URL", default="https://clob.polymarket.com"
+POLYMARKET_US_API_BASE_URL = env(
+    "POLYMARKET_US_API_BASE_URL", default="https://gateway.polymarket.us"
 )
 MARKET_DATA_SPORTS = env.list(
     "MARKET_DATA_SPORTS",
@@ -163,6 +160,9 @@ MARKET_DATA_MIN_HIT_PROBABILITY_PERCENT = env.float(
 )
 MARKET_DATA_COST_ALLOWANCE_PERCENT = env.float(
     "MARKET_DATA_COST_ALLOWANCE_PERCENT", default=1.0
+)
+MARKET_DATA_KELLY_FRACTION = env.float(
+    "MARKET_DATA_KELLY_FRACTION", default=0.5
 )
 NESSIE_API_KEY = env("NESSIE_API_KEY", default="")
 NESSIE_API_BASE_URL = env("NESSIE_API_BASE_URL", default="http://api.nessieisreal.com")

@@ -10,7 +10,7 @@ const heroCard = mockOpportunities[0]
 
 const trustPoints = [
   {
-    title: 'Only Kalshi & Polymarket.',
+    title: 'Only Kalshi & Polymarket US.',
     body: 'Every opportunity is a real, currently tradeable exchange contract.',
   },
   {
@@ -60,7 +60,7 @@ export default function LandingPage() {
               {...rise(0.1)}
               className="mt-9 max-w-[30rem] text-base leading-relaxed text-vantage-textDim sm:text-lg"
             >
-              See what the broader market thinks a Kalshi or Polymarket sports contract is
+              See what the broader market thinks a Kalshi or Polymarket US sports contract is
               worth — before you take a position.
             </motion.p>
 
@@ -71,7 +71,7 @@ export default function LandingPage() {
                 <span className="text-sm uppercase tracking-wide text-vantage-textDim">Live on</span>
                 <span className="text-sm font-medium text-vantage-text">Kalshi</span>
                 <span className="h-3 w-px bg-vantage-borderLight" />
-                <span className="text-sm font-medium text-vantage-text">Polymarket</span>
+                <span className="text-sm font-medium text-vantage-text">Polymarket US</span>
               </div>
 
               <motion.div whileTap={{ scale: 0.96 }} whileHover={{ scale: 1.02 }}>
@@ -131,7 +131,7 @@ export default function LandingPage() {
             Identify <span className="text-vantage-positive">+EV</span> opportunities
           </h2>
           <p className="mt-4 text-base leading-relaxed text-vantage-textDim">
-            The EV Finder scans Kalshi and Polymarket sports contracts against a no-vig
+            The EV Finder scans Kalshi and Polymarket US sports contracts against a no-vig
             consensus of major sportsbooks and surfaces the ones that may be priced below their
             estimated market value — with the executable price, confidence, and sources shown
             alongside every card.

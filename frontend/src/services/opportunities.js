@@ -20,12 +20,17 @@ import { api } from './api.js'
  *     "selection": { "title", "subtitle", "avatarUrl", "tags": ["<string>"] },
  *     "market":    { "title", "subtitle" },
  *     "platform":  { "name", "iconUrl" },
+ *     "action":    { "platform", "marketUrl", "comboPrefillSupported" },
  *     "price":     { "label", "odds", "oddsLabel", "source" },
  *     "consensus": { "label", "probability" },
  *     "ev":        { "label", "value": <number>, "isPositive": <boolean> },
  *     "evaluation": {
  *       "hitProbability", "hitProbabilityLabel", "missProbability",
- *       "tier", "tierLabel", "kellyPercent", "quarterKellyPercent", "rankScore"
+ *       "tier", "tierLabel", "kellyPercent", "halfKellyPercent", "rankScore"
+ *     },
+ *     "positionSizing": {
+ *       "method", "recommendedPercent", "recommendedAmountLabel",
+ *       "expectedProfitLabel", "profitIfWinLabel", "maximumAmountLabel"
  *     },
  *     "hasDetail": <boolean>
  *   }

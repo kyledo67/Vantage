@@ -68,6 +68,18 @@ function ParlayCard({ parlay, onRename, onRemove, onViewDetails }) {
             {parlay.estimatedChance ?? 'Unavailable'}
           </dd>
         </div>
+        <div>
+          <dt className="text-sm uppercase tracking-wide text-vantage-alert">Recommended Bet</dt>
+          <dd className="mt-1.5 text-xl font-semibold text-vantage-text">
+            {parlay.positionSizing?.recommendedAmountLabel ?? 'Unavailable'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-sm uppercase tracking-wide text-vantage-alert">Profit if parlay wins</dt>
+          <dd className="mt-1.5 text-xl font-semibold text-vantage-positive">
+            {parlay.positionSizing?.profitIfWinLabel ?? 'Unavailable'}
+          </dd>
+        </div>
       </dl>
 
       <p className="mt-5 text-xs leading-relaxed text-vantage-textDim">
