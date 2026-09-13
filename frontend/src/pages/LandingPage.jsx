@@ -44,11 +44,14 @@ export default function LandingPage() {
               {...rise(0)}
               className="text-5xl font-semibold leading-[1.05] tracking-[-0.02em] text-vantage-text sm:text-6xl lg:text-8xl"
             >
-              <span className="block">Your</span>
-              <span className="block whitespace-nowrap">
+              {/* em-based, not a fixed px/rem offset — scales with the
+                  responsive 5xl→6xl→8xl type size instead of under-correcting
+                  at the largest breakpoint like a flat -ml-1.5 did. */}
+              <span className="-ml-[0.06em] block">Your</span>
+              <span className="-ml-[0.06em] block whitespace-nowrap">
                 <span className="text-gradient-lavender">V</span>antage Point
               </span>
-              <span className="-ml-1.5 mt-1.5 block font-display font-normal tracking-normal">
+              <span className="-ml-[0.06em] mt-1.5 block font-display font-normal tracking-normal">
                 on the Market
               </span>
             </motion.h1>

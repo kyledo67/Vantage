@@ -2,12 +2,11 @@ import { Routes, Route, Navigate, Outlet, useOutletContext } from 'react-router-
 import SiteLayout from './components/layout/SiteLayout.jsx'
 import DashboardLayout from './layouts/DashboardLayout.jsx'
 import LandingPage from './pages/LandingPage.jsx'
+import HomePage from './pages/HomePage.jsx'
 import EvFinderPage from './pages/EvFinderPage.jsx'
 import WatchlistPage from './pages/WatchlistPage.jsx'
 import ParlayBuilderPage from './pages/ParlayBuilderPage.jsx'
 import AlertsPage from './pages/AlertsPage.jsx'
-import MarketsPage from './pages/MarketsPage.jsx'
-import MarketDetailPage from './pages/MarketDetailPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 import SettingsPage from './pages/SettingsPage.jsx'
 import MethodologyPage from './pages/MethodologyPage.jsx'
@@ -20,6 +19,7 @@ import VerificationPendingPage from './pages/verification/VerificationPendingPag
 import VerificationDeclinedPage from './pages/verification/VerificationDeclinedPage.jsx'
 import VerificationUnavailablePage from './pages/verification/VerificationUnavailablePage.jsx'
 import { ParlayProvider } from './context/ParlayContext.jsx'
+import { EvWatchlistProvider } from './context/EvWatchlistContext.jsx'
 import { VerificationProvider } from './context/VerificationContext.jsx'
 
 /**
@@ -81,19 +81,24 @@ export default function App() {
         <Route
           element={
             <ParlayProvider>
-              <DashboardLayout />
+              <EvWatchlistProvider>
+                <DashboardLayout />
+              </EvWatchlistProvider>
             </ParlayProvider>
           }
         >
           <Route path="/methodology" element={<MethodologyPage />} />
 
           <Route element={<GuardedOutlet />}>
+            {/* Default landing experience post-login/verification (see
+                AuthContext, LoginPage, and the verification pages' redirect
+                fallbacks — all point here now instead of straight to
+                /ev-finder). */}
+            <Route path="/home" element={<HomePage />} />
             <Route path="/ev-finder" element={<EvFinderPage />} />
             <Route path="/watchlist" element={<WatchlistPage />} />
             <Route path="/parlay" element={<ParlayBuilderPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="/markets" element={<MarketsPage />} />
-            <Route path="/markets/:id" element={<MarketDetailPage />} />
             <Route path="/history" element={<HistoryPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             {/* Old route kept working for anyone holding the link. */}
