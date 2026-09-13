@@ -6,8 +6,8 @@ import { useMemo, useState } from 'react'
 
 const WIDTH = 320
 
-/** Two-line offered-vs-sharp price chart with a purple-to-green advantage fill. */
-export function LineMovementChart({ series, height = 90 }) {
+/** Two-line offered-vs-sharp price chart with a colored advantage fill between them. */
+export function LineMovementChart({ series, height = 90, offeredColor = '#DF78FF', sharpColor = '#63D6A5' }) {
   const { offeredPath, sharpPath, fillPath } = useMemo(() => {
     const values = series.flatMap((p) => [p.offered, p.sharp])
     const min = Math.min(...values)
@@ -32,13 +32,13 @@ export function LineMovementChart({ series, height = 90 }) {
     <svg viewBox={`0 0 ${WIDTH} ${height}`} preserveAspectRatio="none" className="w-full" style={{ height }} aria-hidden="true">
       <defs>
         <linearGradient id="inside-vantage-advantage" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#CE63E9" stopOpacity="0.2" />
-          <stop offset="100%" stopColor="#63D6A5" stopOpacity="0.08" />
+          <stop offset="0%" stopColor={offeredColor} stopOpacity="0.2" />
+          <stop offset="100%" stopColor={sharpColor} stopOpacity="0.08" />
         </linearGradient>
       </defs>
       <path d={fillPath} fill="url(#inside-vantage-advantage)" stroke="none" />
-      <path d={offeredPath} fill="none" stroke="#DF78FF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      <path d={sharpPath} fill="none" stroke="#63D6A5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={offeredPath} fill="none" stroke={offeredColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={sharpPath} fill="none" stroke={sharpColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )
 }

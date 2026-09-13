@@ -1,16 +1,14 @@
 import { LineMovementChart } from './charts.jsx'
 import { previewOpportunity as o } from './data.js'
+import { getSourceColor, hexToRgba } from '../../../utils/sourceBrandColors.js'
 
 function formatOdds(odds) {
   return odds > 0 ? `+${odds}` : `${odds}`
 }
 
-const SOURCE_STYLE = {
-  offered: 'border-vantage-border text-vantage-textDim',
-  exchange: 'border-vantage-accent/40 text-vantage-alert',
-  sharp: 'border-vantage-positive/40 text-vantage-positive',
-  fair: 'border-vantage-positive/40 text-vantage-positive',
-}
+// "Consensus fair value" isn't a real source with a logo — keep it on the
+// app's own positive-green tone rather than a brand color.
+const FAIR_VALUE_COLOR = '#63D6A5'
 
 /**
  * The "compelling snippet" — a realistic, sample-only Positive EV card
@@ -35,17 +33,23 @@ export default function OddsPreviewCard() {
         </span>
       </div>
 
-      {/* Source-by-source pricing */}
+      {/* Source-by-source pricing — each pill colored by that source's own
+          brand color (see utils/sourceBrandColors.js), not by role/type, so
+          e.g. Kalshi always reads the same color everywhere it appears. */}
       <div className="mt-6 flex flex-wrap gap-2">
-        {o.sources.map((s) => (
-          <span
-            key={s.name}
-            className={`flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${SOURCE_STYLE[s.type]}`}
-          >
-            {s.name}
-            <span className="text-vantage-text">{formatOdds(s.odds)}</span>
-          </span>
-        ))}
+        {o.sources.map((s) => {
+          const color = s.type === 'fair' ? FAIR_VALUE_COLOR : getSourceColor(s.name)
+          return (
+            <span
+              key={s.name}
+              className="flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium"
+              style={{ borderColor: hexToRgba(color, 0.4), color }}
+            >
+              {s.name}
+              <span className="text-vantage-text">{formatOdds(s.odds)}</span>
+            </span>
+          )
+        })}
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-5 sm:grid-cols-4">
@@ -81,16 +85,28 @@ export default function OddsPreviewCard() {
           <span>Offered vs. sharp price — last 6h</span>
           <span className="flex gap-4">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-vantage-alert" aria-hidden="true" />
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: getSourceColor('FanDuel') }}
+                aria-hidden="true"
+              />
               FanDuel
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-vantage-positive" aria-hidden="true" />
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ backgroundColor: getSourceColor('Pinnacle') }}
+                aria-hidden="true"
+              />
               Pinnacle
             </span>
           </span>
         </div>
-        <LineMovementChart series={o.priceHistory} />
+        <LineMovementChart
+          series={o.priceHistory}
+          offeredColor={getSourceColor('FanDuel')}
+          sharpColor={getSourceColor('Pinnacle')}
+        />
       </div>
     </div>
   )

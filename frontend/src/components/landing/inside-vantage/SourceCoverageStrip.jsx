@@ -8,6 +8,7 @@ import prizepicks from '../../../assets/logos/prizepicks.png'
 import underdog from '../../../assets/logos/underdog.png'
 import kalshi from '../../../assets/logos/kalshi.png'
 import polymarket from '../../../assets/logos/polymarket.png'
+import { getSourceColor, hexToRgba } from '../../../utils/sourceBrandColors.js'
 
 // Real marks, used only to identify Vantage's data sources — see
 // market-source-logos/README.md in the repo root for provenance per brand.
@@ -28,15 +29,19 @@ const sources = [
 export default function SourceCoverageStrip() {
   return (
     <div className="flex flex-wrap items-center justify-center gap-2.5">
-      {sources.map((s) => (
-        <span
-          key={s.name}
-          className="flex items-center gap-2.5 rounded-full border border-vantage-border py-1.5 pl-1.5 pr-4 text-sm text-vantage-textDim"
-        >
-          <img src={s.logo} alt="" className="h-6 w-6 flex-shrink-0 rounded-full object-cover" />
-          {s.name}
-        </span>
-      ))}
+      {sources.map((s) => {
+        const color = getSourceColor(s.name)
+        return (
+          <span
+            key={s.name}
+            className="flex items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-4 text-sm font-medium"
+            style={{ borderColor: hexToRgba(color, 0.35), color }}
+          >
+            <img src={s.logo} alt="" className="h-6 w-6 flex-shrink-0 rounded-full object-cover" />
+            {s.name}
+          </span>
+        )
+      })}
       <span className="rounded-full border border-dashed border-vantage-border px-4 py-2 text-sm text-vantage-textDim">
         + more
       </span>
