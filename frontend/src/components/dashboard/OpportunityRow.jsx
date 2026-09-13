@@ -4,12 +4,15 @@ import { Chevron, PlaceholderIcon, PlatformBadge, PositiveValue, Skeleton } from
 import WatchButton from '../ev/WatchButton.jsx'
 import ValueFlash from '../../motion/ValueFlash.jsx'
 import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
+import { getPlatformLogo } from '../../utils/platformLogos.js'
 
 // Column template shared by the header and every row so they stay aligned.
 // Widened proportionally for the larger type scale, and the trailing two
 // columns match the 56px watch-button and chevron so neither is clipped.
+// Platform gets extra width (and the gap is wider overall) so its icon+name
+// isn't butted right up against Price — cramped at typical browser zoom.
 export const COLUMNS =
-  'grid grid-cols-[1.8fr_1fr_0.8fr_0.75fr_0.75fr_0.9fr_0.7fr_56px_56px] items-center gap-4'
+  'grid grid-cols-[1.6fr_1fr_0.95fr_0.85fr_0.75fr_0.85fr_0.6fr_56px_56px] items-center gap-6'
 
 /** Detail panel — each block is skipped entirely when its data is absent. */
 function ExpandedPanel({ detail, status, onMethodology }) {
@@ -55,8 +58,12 @@ function ExpandedPanel({ detail, status, onMethodology }) {
                 className="min-w-[11rem] flex-shrink-0 rounded-lg border border-vantage-border bg-vantage-surface p-5"
               >
                 <div className="flex items-center gap-2.5">
-                  {source.iconUrl ? (
-                    <img src={source.iconUrl} alt="" className="h-[18px] w-[18px] rounded-sm object-cover" />
+                  {source.iconUrl || getPlatformLogo(source.name) ? (
+                    <img
+                      src={source.iconUrl || getPlatformLogo(source.name)}
+                      alt=""
+                      className="h-[18px] w-[18px] rounded-sm object-cover"
+                    />
                   ) : (
                     <PlaceholderIcon name={source.name} className="h-[18px] w-[18px]" />
                   )}
@@ -247,7 +254,7 @@ export default function OpportunityRow({
         {/* Cells flash briefly when the backend sends a changed value. */}
         <div className="min-w-0" role="cell">
           {price?.label && (
-            <ValueFlash value={price.label} className="text-lg font-medium text-vantage-text">
+            <ValueFlash value={price.label} className="whitespace-nowrap text-lg font-medium text-vantage-text">
               {price.label}
             </ValueFlash>
           )}

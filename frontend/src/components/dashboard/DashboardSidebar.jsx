@@ -28,12 +28,6 @@ const ParlayIcon = icon(
     <path d="M3 10l7 3 7-3M3 13.5l7 3 7-3" {...s} />
   </>
 )
-const AlertsIcon = icon(
-  <>
-    <path d="M6 8a4 4 0 118 0c0 3 1.5 4.5 1.5 4.5h-11S6 11 6 8z" {...s} />
-    <path d="M8.5 15a1.5 1.5 0 003 0" {...s} />
-  </>
-)
 const HistoryIcon = icon(
   <>
     <circle cx="10" cy="10" r="6.5" {...s} />
@@ -56,7 +50,6 @@ const navItems = [
   { label: 'Opportunities', to: '/ev-finder', Icon: DiscoverIcon },
   { label: 'Watchlist', to: '/watchlist', Icon: WatchlistIcon },
   { label: 'My Parlays', to: '/parlay', Icon: ParlayIcon },
-  { label: 'Alerts', to: '/alerts', Icon: AlertsIcon },
   { label: 'History', to: '/history', Icon: HistoryIcon },
   { label: 'Settings', to: '/settings', Icon: SettingsIcon },
 ]

@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAsync } from '../hooks/useAsync.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { getHomeOverview, getHomeClv, CLV_PERIODS } from '../services/home.js'
+import { useParlays } from '../context/ParlayContext.jsx'
+import { getHomeClv, CLV_PERIODS } from '../services/home.js'
 import { Skeleton } from '../components/dashboard/atoms.jsx'
 import { ProgressRing, Sparkline, BreakdownRow } from '../components/dashboard/HomeWidgets.jsx'
 
@@ -102,41 +103,55 @@ function GetStartedCard({ item }) {
   )
 }
 
+/**
+ * There's no real bet-placement/settlement backend — the parlay builder is
+ * the only record of activity that actually exists (see HistoryPage.jsx,
+ * same reasoning), so this reads from the same saved-parlay data instead of
+ * the unimplemented /home/overview endpoint, which always came back zeroed.
+ * The ring shows the average *estimated* chance of hitting across saved
+ * parlays (each parlay already carries one, from BuildParlayModal's
+ * computeEstimatedChance) rather than a win *rate* — a hypothetical parlay
+ * is never graded, so there's no real outcome to compute a rate from, but
+ * there is a probability estimate to show.
+ */
 function BetOverviewWidget() {
-  const overview = useAsync(getHomeOverview, [])
-  const data = overview.data
+  const { savedParlays } = useParlays()
 
-  if (overview.status === 'loading' || overview.status === 'idle') {
-    return (
-      <div className="rounded-xl border border-vantage-border bg-vantage-surface p-6">
-        <Skeleton className="h-5 w-40" />
-        <div className="mt-6 flex items-center gap-8">
-          <Skeleton className="h-32 w-32 rounded-full" />
-          <div className="flex flex-1 flex-col gap-4">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-24" />
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const { totalBets, risked, potential, avgChance } = useMemo(() => {
+    let riskedTotal = 0
+    let potentialTotal = 0
+    let chanceSum = 0
+    let chanceCount = 0
+    for (const parlay of savedParlays) {
+      const sizing = parlay.positionSizing
+      const stake = Number(sizing?.selectedAmount ?? sizing?.recommendedAmount) || 0
+      const payout = Number.isFinite(Number(sizing?.totalPayout))
+        ? Number(sizing.totalPayout)
+        : stake + (Number(sizing?.profitIfWin) || 0)
+      riskedTotal += stake
+      potentialTotal += payout
 
-  if (overview.status === 'error') {
-    return (
-      <div className="rounded-xl border border-vantage-border bg-vantage-surface p-6">
-        <p className="text-sm text-vantage-textDim">Couldn’t load today’s bet overview.</p>
-      </div>
-    )
-  }
+      const chance = parseFloat(parlay.estimatedChance)
+      if (Number.isFinite(chance)) {
+        chanceSum += chance
+        chanceCount += 1
+      }
+    }
+    return {
+      totalBets: savedParlays.length,
+      risked: riskedTotal,
+      potential: potentialTotal,
+      avgChance: chanceCount > 0 ? chanceSum / chanceCount / 100 : null,
+    }
+  }, [savedParlays])
 
-  const hasBets = data.totalBets > 0
-  const risked = (data.riskedCents / 100).toLocaleString(undefined, {
+  const hasBets = totalBets > 0
+  const riskedLabel = risked.toLocaleString(undefined, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
   })
-  const potential = (data.potentialCents / 100).toLocaleString(undefined, {
+  const potentialLabel = potential.toLocaleString(undefined, {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 0,
@@ -152,25 +167,25 @@ function BetOverviewWidget() {
       </div>
 
       <div className="flex flex-col items-center gap-6 sm:flex-row">
-        <ProgressRing value={data.winRate} label="win rate" />
+        <ProgressRing value={avgChance} label="chance of hitting" />
         <div className="flex flex-1 flex-col gap-4">
           {!hasBets && (
             <p className="flex items-center gap-2 text-sm text-vantage-textDim">
               <span className="h-1.5 w-1.5 rounded-full bg-vantage-textDim" aria-hidden="true" />
-              No bets today yet — your activity will show up here as you place them.
+              No parlays saved yet — build one in the EV Finder and it’ll show up here.
             </p>
           )}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <p className="text-xl font-semibold text-vantage-text">{risked}</p>
+              <p className="text-xl font-semibold text-vantage-text">{riskedLabel}</p>
               <p className="text-xs text-vantage-textDim">risked</p>
             </div>
             <div>
-              <p className="text-xl font-semibold text-vantage-text">{potential}</p>
+              <p className="text-xl font-semibold text-vantage-text">{potentialLabel}</p>
               <p className="text-xs text-vantage-textDim">potential</p>
             </div>
             <div>
-              <p className="text-xl font-semibold text-vantage-text">{data.totalBets}</p>
+              <p className="text-xl font-semibold text-vantage-text">{totalBets}</p>
               <p className="text-xs text-vantage-textDim">total bets</p>
             </div>
           </div>

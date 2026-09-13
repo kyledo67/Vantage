@@ -39,11 +39,22 @@ export function ProgressRing({ value, label, size = 128, stroke = 10 }) {
           />
         )}
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 text-center">
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 px-4 text-center">
         <span className="text-lg font-semibold text-vantage-text">
           {hasValue ? `${Math.round(clamped * 100)}%` : '—'}
         </span>
-        {label && <span className="text-xs text-vantage-textDim">{label}</span>}
+        {/* Not text-xs — this project's type scale sets it to 16px, which
+            doesn't fit inside a 128px ring for anything longer than "win
+            rate". A small custom size plus a width cap so it wraps within
+            the ring instead of overflowing past its edge. */}
+        {label && (
+          <span
+            className="text-[10px] leading-tight text-vantage-textDim"
+            style={{ maxWidth: size * 0.62 }}
+          >
+            {label}
+          </span>
+        )}
       </div>
     </div>
   )
