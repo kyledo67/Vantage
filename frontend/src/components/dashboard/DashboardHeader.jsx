@@ -18,6 +18,7 @@ const navIcon = (path) =>
 
 const navIconStroke = { stroke: 'currentColor', strokeWidth: 1.2, strokeLinecap: 'round', strokeLinejoin: 'round' }
 
+const HomeIcon = navIcon(<path d="M2.5 7L8 2.5l5.5 4.5M4 6.5V13h8V6.5" {...navIconStroke} />)
 const DiscoverIcon = navIcon(
   <>
     <circle cx="7" cy="7" r="4.4" {...navIconStroke} />
@@ -25,7 +26,6 @@ const DiscoverIcon = navIcon(
   </>
 )
 const MyPicksIcon = navIcon(<path d="M4 2.5h8v11l-4-2.8-4 2.8v-11z" {...navIconStroke} />)
-const MarketsIcon = navIcon(<path d="M2.5 11.5l3.2-3.2 2.4 2 4.4-4.8" {...navIconStroke} />)
 
 function BookIcon() {
   return (
@@ -48,9 +48,9 @@ function BookIcon() {
 
 // Only destinations that exist are linked; the rest render disabled.
 const primaryNav = [
+  { label: 'Home', to: '/home', Icon: HomeIcon },
   { label: 'Discover', to: '/ev-finder', Icon: DiscoverIcon },
   { label: 'My Picks', to: '/parlay', Icon: MyPicksIcon },
-  { label: 'Markets', to: '/markets', Icon: MarketsIcon },
   { label: 'Methodology', to: '/methodology', Icon: BookIcon },
 ]
 

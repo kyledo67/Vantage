@@ -14,6 +14,7 @@ const icon = (path) =>
 
 const s = { stroke: 'currentColor', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round' }
 
+const HomeIcon = icon(<path d="M3.5 9.5L10 4l6.5 5.5M5.5 8.5V16h9V8.5" {...s} />)
 const DiscoverIcon = icon(
   <>
     <circle cx="9" cy="9" r="5.5" {...s} />
@@ -33,7 +34,6 @@ const AlertsIcon = icon(
     <path d="M8.5 15a1.5 1.5 0 003 0" {...s} />
   </>
 )
-const MarketsIcon = icon(<path d="M3 14l4-4 3 2.5L17 5" {...s} />)
 const HistoryIcon = icon(
   <>
     <circle cx="10" cy="10" r="6.5" {...s} />
@@ -52,11 +52,11 @@ const SettingsIcon = icon(
  * render as disabled rather than as links to nowhere.
  */
 const navItems = [
+  { label: 'Home', to: '/home', Icon: HomeIcon },
   { label: 'Opportunities', to: '/ev-finder', Icon: DiscoverIcon },
   { label: 'Watchlist', to: '/watchlist', Icon: WatchlistIcon },
   { label: 'My Parlays', to: '/parlay', Icon: ParlayIcon },
   { label: 'Alerts', to: '/alerts', Icon: AlertsIcon },
-  { label: 'Markets', to: '/markets', Icon: MarketsIcon },
   { label: 'History', to: '/history', Icon: HistoryIcon },
   { label: 'Settings', to: '/settings', Icon: SettingsIcon },
 ]
@@ -107,7 +107,6 @@ export default function DashboardSidebar({ onNavigate }) {
   return (
     <div className="flex h-full flex-col justify-between gap-4 overflow-y-auto bg-vantage-nav p-6">
       <nav className="flex flex-col gap-2" aria-label="Dashboard">
-        {/* No `end`: /markets/:id should keep "Markets" highlighted. */}
         {navItems.map((item) => (
           <NavItem key={item.label} {...item} onNavigate={onNavigate} />
         ))}

@@ -1,14 +1,15 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { Chevron, PlaceholderIcon, PlatformBadge, PositiveValue, Skeleton } from './atoms.jsx'
+import WatchButton from '../ev/WatchButton.jsx'
 import ValueFlash from '../../motion/ValueFlash.jsx'
 import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
 
 // Column template shared by the header and every row so they stay aligned.
-// Widened proportionally for the larger type scale, and the trailing column
-// now matches the 56px chevron button so it's never clipped.
+// Widened proportionally for the larger type scale, and the trailing two
+// columns match the 56px watch-button and chevron so neither is clipped.
 export const COLUMNS =
-  'grid grid-cols-[1.8fr_1fr_0.8fr_0.75fr_0.75fr_0.9fr_0.7fr_56px] items-center gap-4'
+  'grid grid-cols-[1.8fr_1fr_0.8fr_0.75fr_0.75fr_0.9fr_0.7fr_56px_56px] items-center gap-4'
 
 /** Detail panel — each block is skipped entirely when its data is absent. */
 function ExpandedPanel({ detail, status, onMethodology }) {
@@ -289,6 +290,10 @@ export default function OpportunityRow({
           )}
         </div>
 
+        <div role="cell" className="flex items-center justify-center">
+          <WatchButton opportunity={opportunity} size="sm" />
+        </div>
+
         <button
           type="button"
           onClick={() => onToggle(opportunity.id)}
@@ -300,12 +305,21 @@ export default function OpportunityRow({
         </button>
       </div>
 
-      {/* Mobile card */}
-      <button
-        type="button"
+      {/* Mobile card — a role="button" div rather than a <button> because it
+          now contains a real nested <button> (the watch toggle); a
+          button-in-a-button is invalid HTML. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => onToggle(opportunity.id)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onToggle(opportunity.id)
+          }
+        }}
         aria-expanded={expanded}
-        className="flex min-h-[100px] w-full flex-col gap-2.5 px-5 py-5 text-left lg:hidden"
+        className="flex min-h-[100px] w-full cursor-pointer flex-col gap-2.5 px-5 py-5 text-left lg:hidden"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -318,7 +332,10 @@ export default function OpportunityRow({
               <p className="mt-0.5 truncate text-sm text-vantage-textDim">{selection.subtitle}</p>
             )}
           </div>
-          <PositiveValue value={ev} className="text-lg" />
+          <div className="flex flex-shrink-0 items-center gap-2">
+            <WatchButton opportunity={opportunity} size="sm" />
+            <PositiveValue value={ev} className="text-lg" />
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-vantage-textDim">
           <PlatformBadge platform={platform} />
@@ -338,7 +355,7 @@ export default function OpportunityRow({
             <span>Set bankroll for sizing</span>
           )}
         </div>
-      </button>
+      </div>
 
       <AnimatePresence initial={false}>
         {expanded && (

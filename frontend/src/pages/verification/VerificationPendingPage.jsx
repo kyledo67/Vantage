@@ -23,7 +23,7 @@ export default function VerificationPendingPage() {
   const { refetch } = useVerification()
   const navigate = useNavigate()
   const location = useLocation()
-  const destination = location.state?.from?.pathname || '/ev-finder'
+  const destination = location.state?.from?.pathname || '/home'
   const [checking, setChecking] = useState(false)
   const [message, setMessage] = useState(null)
 

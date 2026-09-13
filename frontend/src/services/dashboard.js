@@ -1,21 +1,15 @@
 import { api } from './api.js'
 
 /**
- * Backend contract for the Watchlist, Parlay Builder, Alerts, Markets, History
- * and Settings features. Backend-driven only — nothing here falls back to
- * sample data, and every field below is optional unless marked required. The UI
- * omits any element whose data is absent rather than substituting a placeholder.
+ * Backend contract for the Parlay Builder, Alerts, History and Settings
+ * features. Backend-driven only — nothing here falls back to sample data,
+ * and every field below is optional unless marked required. The UI omits
+ * any element whose data is absent rather than substituting a placeholder.
  *
- * ── Watchlist ────────────────────────────────────────────────────────────
- * GET    /api/watchlist        → { items: [ WatchItem ] }
- * DELETE /api/watchlist/{id}
- *   WatchItem {
- *     id (required), title, subtitle,
- *     price:        { label },
- *     movement:     { label, isPositive },   // consensus movement
- *     availability: { label, isPositive },
- *     alerts:       [ { id, label } ]        // matching alert rules
- *   }
+ * (Watchlist used to be documented here too, but GET/POST /api/watchlist was
+ * never actually implemented server-side — confirmed against
+ * market_data/urls.py. pages/WatchlistPage.jsx now sources real data from
+ * services/opportunities.js instead of this never-built endpoint.)
  *
  * ── Parlay Builder ───────────────────────────────────────────────────────
  * GET    /api/parlay           → { legs: [ Leg ], combined: Combined | null }
@@ -38,16 +32,6 @@ import { api } from './api.js'
  *   AlertEvent { id (required), at (ISO8601), title, description }
  *   Channel    { id (required), label, description, enabled }
  *
- * ── Markets ──────────────────────────────────────────────────────────────
- * GET /api/markets?search      → { groups: [ { id, label, items:[MarketItem] } ] }
- * GET /api/markets/{id}        → MarketDetail
- *   MarketItem   { id (required), name, subtitle, status:{label,isPositive} }
- *   MarketDetail { title, subtitle, status:{label,isPositive},
- *                  consensus:{label}, liquidity:{label},
- *                  priceHistory:{ points:[{ t: ISO8601, value: number }],
- *                                 consensus: number, valueSuffix: string },
- *                  relatedOpportunities:[ { id, title, subtitle, ev:{label,isPositive} } ] }
- *
  * ── History ──────────────────────────────────────────────────────────────
  * GET /api/history?search&from&to → { events: [ HistoryEvent ] }
  *   HistoryEvent { id (required), at (ISO8601), type, title, description }
@@ -62,10 +46,6 @@ import { api } from './api.js'
  *   added server-side without a frontend change.
  */
 
-// Watchlist
-export const getWatchlist = () => api.get('/watchlist')
-export const removeFromWatchlist = (id) => api.delete(`/watchlist/${id}`)
-
 // Parlay Builder
 export const getParlay = () => api.get('/parlay')
 export const removeParlayLeg = (id) => api.delete(`/parlay/${id}`)
@@ -78,10 +58,6 @@ export const setAlertPaused = (id, paused) => api.patch(`/alerts/${id}`, { pause
 export const deleteAlert = (id) => api.delete(`/alerts/${id}`)
 export const setDeliveryChannel = (channelId, enabled) =>
   api.patch('/alerts/delivery', { channelId, enabled })
-
-// Markets
-export const getMarkets = (params) => api.get('/markets', params)
-export const getMarketDetail = (id) => api.get(`/markets/${id}`)
 
 // History
 export const getHistory = (params) => api.get('/history', params)

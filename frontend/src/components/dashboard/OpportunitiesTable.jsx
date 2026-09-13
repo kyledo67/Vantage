@@ -28,6 +28,7 @@ function TableHeader() {
         </span>
       ))}
       <span />
+      <span />
     </div>
   )
 }
@@ -61,6 +62,7 @@ function TableSkeleton({ rows = 6 }) {
             <Skeleton className="h-3 w-10" />
             <Skeleton className="h-3 w-16" />
             <Skeleton className="h-3 w-16" />
+            <span />
             <span />
           </div>
           <div className="flex flex-col gap-2.5 lg:hidden">
