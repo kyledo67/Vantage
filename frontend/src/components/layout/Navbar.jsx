@@ -98,9 +98,45 @@ function ProductMenu() {
   )
 }
 
+/**
+ * Fades the sticky nav out as the page reaches the landing page's "Inside
+ * Vantage" section (#inside-vantage) — 1 while it's still a viewport away,
+ * down to 0 once it's reached the top of the screen. A no-op on any other
+ * page, since that element only exists on the landing page.
+ */
+function useInsideVantageFade() {
+  const [opacity, setOpacity] = useState(1)
+
+  useEffect(() => {
+    function update() {
+      const target = document.getElementById('inside-vantage')
+      if (!target) {
+        setOpacity(1)
+        return
+      }
+      const top = target.getBoundingClientRect().top
+      // Starts fading once the section is a full viewport away, fully faded
+      // by the time its top edge reaches the header.
+      const start = window.innerHeight
+      const progress = Math.min(1, Math.max(0, (start - top) / start))
+      setOpacity(1 - progress)
+    }
+    update()
+    window.addEventListener('scroll', update, { passive: true })
+    window.addEventListener('resize', update)
+    return () => {
+      window.removeEventListener('scroll', update)
+      window.removeEventListener('resize', update)
+    }
+  }, [])
+
+  return opacity
+}
+
 export default function Navbar() {
   const { isAuthenticated, user, logout } = useAuth()
   const navigate = useNavigate()
+  const navOpacity = useInsideVantageFade()
 
   function handleLogout() {
     logout()
@@ -108,7 +144,18 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-vantage-border bg-vantage-nav/85 backdrop-blur">
+    // backdrop-blur only at full rest opacity — combining a CSS `opacity`
+    // fade with `backdrop-filter: blur()` makes the browser rasterize the
+    // blurred backdrop inside the element's own box, which shows up as a
+    // hard dark seam right along the bottom border once opacity drops
+    // below 1. Dropping blur for the (brief, scroll-driven) fade avoids it;
+    // it's imperceptible since the header is on its way to invisible anyway.
+    <header
+      className={`sticky top-0 z-30 border-b border-vantage-border bg-vantage-nav/85 transition-opacity duration-150 ${
+        navOpacity >= 0.98 ? 'backdrop-blur' : ''
+      }`}
+      style={{ opacity: navOpacity, pointerEvents: navOpacity < 0.05 ? 'none' : 'auto' }}
+    >
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between px-5 py-5 sm:px-8 lg:px-20">
         <Link to="/" className="flex items-center gap-2.5" aria-label="Vantage home">
           <span className="text-xl font-semibold tracking-tight text-vantage-text">

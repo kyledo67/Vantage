@@ -1,4 +1,4 @@
-import { Suspense, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { Float, OrbitControls, Html, RoundedBox, ContactShadows } from '@react-three/drei'
@@ -126,6 +126,23 @@ function Laptop({ reduceMotion }) {
     phaseStartRef.current = 0 // initialized on the next frame, against the render clock
     setScreenVisible(false)
   }
+
+  // Auto-play the same close/spin/open sequence once whenever this mounts —
+  // i.e. every time the landing page is loaded or navigated to — so the
+  // laptop demonstrates itself instead of relying on a visitor finding the
+  // click-to-spin interaction. Timed just after the hero's own fade-in
+  // (LandingPage's right-column motion.div: 0.7s duration + 0.15s delay)
+  // finishes, so it reads as the next beat, not a jump-cut.
+  useEffect(() => {
+    if (reduceMotion) return undefined
+    const id = setTimeout(() => {
+      if (phaseRef.current !== 'idle') return
+      phaseRef.current = 'closing'
+      phaseStartRef.current = 0
+      setScreenVisible(false)
+    }, 1000)
+    return () => clearTimeout(id)
+  }, [reduceMotion])
 
   useFrame((state) => {
     const lid = lidRef.current
