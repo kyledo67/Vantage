@@ -7,6 +7,7 @@ import BuildParlayModal from '../components/dashboard/BuildParlayModal.jsx'
 import { Skeleton, StatusIndicator } from '../components/dashboard/atoms.jsx'
 import { useAsync } from '../hooks/useAsync.js'
 import { useParlays } from '../context/ParlayContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import {
   getFilterConfig,
   getOpportunities,
@@ -27,6 +28,7 @@ export default function EvFinderPage() {
   const { search } = useOutletContext()
   const navigate = useNavigate()
   const { addParlay, showToast } = useParlays()
+  const { user } = useAuth()
 
   const [category, setCategory] = useState('')
   const [filterValues, setFilterValues] = useState({})
@@ -50,14 +52,14 @@ export default function EvFinderPage() {
   const loadFeed = useCallback(() => {
     const refresh = refreshRequested.current
     refreshRequested.current = false
-    return getOpportunities({ ...query, refresh: refresh ? 'true' : undefined })
-  }, [query])
+    return getOpportunities({ ...query, refresh: refresh ? 'true' : undefined }, user?.id)
+  }, [query, user?.id])
 
   const feed = useAsync(loadFeed, [loadFeed])
 
   const detail = useAsync(
-    () => (expandedId ? getOpportunityDetail(expandedId) : Promise.resolve(null)),
-    [expandedId],
+    () => (expandedId ? getOpportunityDetail(expandedId, user?.id) : Promise.resolve(null)),
+    [expandedId, user?.id],
     { immediate: Boolean(expandedId) }
   )
 
@@ -94,15 +96,19 @@ export default function EvFinderPage() {
   }, [])
 
   const handleSaveParlay = useCallback(
-    (parlay) => {
-      addParlay(parlay)
-      setSelectedMap({})
-      setBuilderOpen(false)
-      showToast({
-        message: 'Saved to My Parlays.',
-        actionLabel: 'View My Parlays',
-        onAction: () => navigate('/parlay'),
-      })
+    async (parlay) => {
+      try {
+        await addParlay(parlay)
+        setSelectedMap({})
+        setBuilderOpen(false)
+        showToast({
+          message: 'Saved to My Parlays.',
+          actionLabel: 'View My Parlays',
+          onAction: () => navigate('/parlay'),
+        })
+      } catch {
+        // ParlayContext shows the save failure toast.
+      }
     },
     [addParlay, navigate, showToast]
   )

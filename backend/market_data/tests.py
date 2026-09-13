@@ -12,8 +12,13 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APITestCase
 
 from .eligibility import evaluate_platform_eligibility
-from .models import UserProfile
-from .clients import KalshiAPIClient, ParlayAPIClient, PolymarketAPIClient
+from .models import SavedParlay, UserProfile
+from .clients import (
+    KalshiAPIClient,
+    ParlayAPIClient,
+    PolymarketAPIClient,
+    PropLineAPIClient,
+)
 from .opportunities import (
     OpportunityService,
     build_game_opportunities,
@@ -172,6 +177,71 @@ class CurrentUserProfileTests(APITestCase):
 
 
 @override_settings(
+    SUPABASE_URL="https://example.supabase.co",
+    SUPABASE_PUBLISHABLE_KEY="test-publishable-key",
+)
+class SavedParlayApiTests(APITestCase):
+    uid = UUID("22222222-2222-2222-2222-222222222222")
+    url = "/api/parlays/"
+
+    def setUp(self):
+        response = Mock(status_code=200)
+        response.json.return_value = {"id": str(self.uid), "email": "parlays@example.com"}
+        self.auth_request = patch(
+            "market_data.authentication.requests.get", return_value=response
+        )
+        self.auth_request.start()
+        self.addCleanup(self.auth_request.stop)
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer valid-access-token")
+
+    def payload(self):
+        return {
+            "name": "Saturday picks",
+            "selections": [{"id": "selection-1", "selection": {"title": "Team A"}}],
+            "estimatedEdge": "+4.2%",
+            "estimatedChance": "51.0%",
+            "positionSizing": {"selectedAmount": 25, "profitIfWin": 30},
+        }
+
+    def test_create_list_update_and_delete_own_saved_parlay(self):
+        create_response = self.client.post(self.url, self.payload(), format="json")
+
+        self.assertEqual(create_response.status_code, 201)
+        parlay_id = create_response.data["id"]
+        self.assertEqual(create_response.data["outcome"], "pending")
+        self.assertEqual(create_response.data["name"], "Saturday picks")
+
+        list_response = self.client.get(self.url)
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.data), 1)
+        self.assertEqual(list_response.data[0]["id"], parlay_id)
+
+        detail_url = f"{self.url}{parlay_id}/"
+        outcome_response = self.client.patch(detail_url, {"outcome": "won"}, format="json")
+        self.assertEqual(outcome_response.status_code, 200)
+        self.assertEqual(outcome_response.data["outcome"], "won")
+        self.assertIsNotNone(outcome_response.data["settledAt"])
+
+        delete_response = self.client.delete(detail_url)
+        self.assertEqual(delete_response.status_code, 204)
+        self.assertEqual(SavedParlay.objects.count(), 0)
+
+    def test_cannot_read_another_users_saved_parlay(self):
+        other_profile = UserProfile.objects.create(
+            uid=UUID("33333333-3333-3333-3333-333333333333"), bankroll="100.00"
+        )
+        SavedParlay.objects.create(
+            owner=other_profile,
+            name="Other user's parlay",
+            selections=[{"id": "other-selection"}],
+        )
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, [])
+
+
+@override_settings(
     MARKET_DATA_COST_ALLOWANCE_PERCENT=1.0,
     MARKET_DATA_MAX_AGE_SECONDS=180,
 )
@@ -180,7 +250,7 @@ class OpportunityCalculationTests(TestCase):
         source_titles = {
             "fanduel": "FanDuel",
             "pinnacle": "Pinnacle",
-            "polymarket": "Polymarket US",
+            "polymarket": "Polymarket",
         }
         return {
             "event_id": "event-1",
@@ -201,7 +271,7 @@ class OpportunityCalculationTests(TestCase):
             "url": f"https://example.com/{source}/market",
         }
 
-    def test_half_kelly_sizing_uses_bankroll_ev_odds_and_five_percent_maximum(self):
+    def test_quarter_kelly_sizing_stays_below_the_user_maximum(self):
         opportunity = {
             "price": {"odds": 100},
             "ev": {"value": 10.0},
@@ -213,31 +283,31 @@ class OpportunityCalculationTests(TestCase):
             bankroll="1000.00",
         )
 
-        self.assertEqual(sizing["method"], "Half Kelly")
-        self.assertEqual(sizing["uncappedPercent"], 5.0)
-        self.assertEqual(sizing["recommendedPercent"], 5.0)
+        self.assertEqual(sizing["method"], "Quarter Kelly")
+        self.assertEqual(sizing["uncappedPercent"], 2.5)
+        self.assertEqual(sizing["recommendedPercent"], 2.5)
         self.assertEqual(sizing["maxPositionPercent"], 5.0)
-        self.assertEqual(sizing["recommendedAmount"], 50.0)
+        self.assertEqual(sizing["recommendedAmount"], 25.0)
         self.assertEqual(sizing["maximumAmount"], 50.0)
-        self.assertEqual(sizing["expectedProfit"], 5.0)
-        self.assertEqual(sizing["profitIfWin"], 50.0)
+        self.assertEqual(sizing["expectedProfit"], 2.5)
+        self.assertEqual(sizing["profitIfWin"], 25.0)
         self.assertEqual(sizing["unitSize"], 10.0)
-        self.assertEqual(sizing["recommendedUnits"], 5.0)
+        self.assertEqual(sizing["recommendedUnits"], 2.5)
         self.assertFalse(sizing["isCapped"])
         self.assertFalse(sizing["isMinimumApplied"])
 
-    def test_position_sizing_applies_the_two_point_five_percent_minimum(self):
+    def test_position_sizing_applies_the_half_percent_minimum(self):
         sizing = personalized_position_sizing(
             {
                 "price": {"odds": 100},
                 "ev": {"value": 2.0},
-                "evaluation": {"kellyPercent": 2.0},
+                "evaluation": {"kellyPercent": 1.0},
             },
             bankroll="1000.00",
         )
 
-        self.assertEqual(sizing["uncappedPercent"], 1.0)
-        self.assertEqual(sizing["recommendedPercent"], 2.5)
+        self.assertEqual(sizing["uncappedPercent"], 0.25)
+        self.assertEqual(sizing["recommendedPercent"], 0.5)
         self.assertEqual(sizing["maximumAmount"], 50.0)
         self.assertTrue(sizing["isMinimumApplied"])
 
@@ -253,10 +323,10 @@ class OpportunityCalculationTests(TestCase):
             bankroll="1000.00",
         )
 
-        # $50 at +203 buys the equivalent of about 151.52 33¢ contracts:
-        # $151.50 total payout, or $101.50 profit before fees.
-        self.assertEqual(sizing["recommendedAmount"], 50.0)
-        self.assertEqual(sizing["profitIfWin"], 101.5)
+        # $25 at +203 buys the equivalent of about 75.76 33¢ contracts:
+        # $75.75 total payout, or $50.75 profit before fees.
+        self.assertEqual(sizing["recommendedAmount"], 25.0)
+        self.assertEqual(sizing["profitIfWin"], 50.75)
 
     def test_probability_evaluation_exposes_half_kelly(self):
         evaluation = probability_aware_evaluation(0.60, 2.0, 20.0)
@@ -345,19 +415,19 @@ class OpportunityCalculationTests(TestCase):
         polymarket_result = next(
             result
             for result in results
-            if result["platform"]["name"] == "Polymarket US"
+            if result["platform"]["name"] == "Polymarket"
         )
 
         source_names = [
             source["name"] for source in kalshi_result["_detail"]["sources"]
         ]
         self.assertEqual(source_names[0], "Kalshi")
-        self.assertIn("Polymarket US", source_names)
+        self.assertIn("Polymarket", source_names)
         polymarket_sources = [
             source["name"]
             for source in polymarket_result["_detail"]["sources"]
         ]
-        self.assertEqual(polymarket_sources[0], "Polymarket US")
+        self.assertEqual(polymarket_sources[0], "Polymarket")
         self.assertIn("Kalshi", polymarket_sources)
 
     def test_prophetx_outlier_does_not_create_false_value(self):
@@ -369,6 +439,23 @@ class OpportunityCalculationTests(TestCase):
         ]
 
         self.assertEqual(build_prop_opportunities(rows), [])
+
+    def test_polymarket_target_never_returns_a_polymarket_dot_com_link(self):
+        result = next(
+            opportunity
+            for opportunity in build_prop_opportunities(
+                [
+                    self.row("polymarket", over_price=120, under_price=-130),
+                    self.row("pinnacle", over_price=-150, under_price=130),
+                    self.row("fanduel", over_price=-145, under_price=125),
+                ]
+            )
+            if opportunity["platform"]["name"] == "Polymarket"
+        )
+
+        self.assertEqual(
+            result["action"]["marketUrl"], "https://polymarket.us/sports"
+        )
 
     def test_prophetx_outlier_is_visible_but_excluded_from_valid_consensus(self):
         rows = [
@@ -747,7 +834,7 @@ class DirectTargetNormalizationTests(TestCase):
             "teams": ("Chelsea", "Hull City"),
             "event_date": datetime(2026, 9, 12).date(),
             "source": "polymarket",
-            "source_title": "Polymarket US",
+            "source_title": "Polymarket",
             "player_name": "Hull City AFC",
             "market_key": "team_totals",
             "line": 2.5,
@@ -789,6 +876,8 @@ class ParlayAPIClientTests(TestCase):
         self.assertEqual(kwargs["headers"], {"X-API-Key": "test-key"})
         self.assertEqual(kwargs["params"]["oddsFormat"], "american")
         self.assertEqual(kwargs["params"]["maxAgeSec"], 180)
+        self.assertNotIn("kalshi", kwargs["params"]["bookmakers"])
+        self.assertNotIn("polymarket", kwargs["params"]["bookmakers"])
 
     def test_get_game_odds_requests_target_and_reference_books(self):
         response = Mock(status_code=200, headers={})
@@ -806,7 +895,141 @@ class ParlayAPIClientTests(TestCase):
             "https://parlay-api.test/v1/sports/baseball_mlb/odds",
         )
         self.assertEqual(kwargs["params"]["markets"], "h2h,spreads,totals")
-        self.assertIn("kalshi", kwargs["params"]["bookmakers"])
+        self.assertNotIn("kalshi", kwargs["params"]["bookmakers"])
+        self.assertNotIn("polymarket", kwargs["params"]["bookmakers"])
+
+    def test_get_prediction_markets_requests_kalshi_aligned_sources(self):
+        response = Mock(status_code=200, headers={})
+        response.json.return_value = [{"source": "kalshi", "ticker": "KXTEST"}]
+        session = Mock()
+        session.get.return_value = response
+        client = ParlayAPIClient(session=session, sleep=Mock())
+
+        result = client.get_prediction_markets("baseball_mlb")
+
+        self.assertEqual(result, [{"source": "kalshi", "ticker": "KXTEST"}])
+        self.assertEqual(
+            session.get.call_args.args[0],
+            "https://parlay-api.test/v1/prediction-markets/baseball_mlb",
+        )
+        self.assertEqual(
+            session.get.call_args.kwargs["params"]["sources"],
+            "kalshi,polymarket,novig",
+        )
+
+
+@override_settings(
+    PROPLINE_API_KEY="test-key",
+    PROPLINE_API_BASE_URL="https://api.prop-line.test/v1",
+    MARKET_DATA_REQUEST_TIMEOUT_SECONDS=15,
+    MARKET_DATA_PROPLINE_EVENT_LIMIT=5,
+)
+class PropLineAPIClientTests(TestCase):
+    @override_settings(PROPLINE_API_BASE_URL="https://api.prop-line.test/v1p")
+    def test_corrects_a_mistyped_propline_v1p_base_url(self):
+        self.assertEqual(
+            PropLineAPIClient(session=Mock(), sleep=Mock()).base_url,
+            "https://api.prop-line.test/v1",
+        )
+
+    def test_get_kalshi_props_normalizes_two_sided_player_contracts(self):
+        events = Mock(status_code=200, headers={})
+        events.json.return_value = [{"id": "event-1"}]
+        odds = Mock(status_code=200, headers={})
+        odds.json.return_value = {
+            "id": "event-1",
+            "sport_key": "baseball_mlb",
+            "away_team": "Away Team",
+            "home_team": "Home Team",
+            "commence_time": TEST_FUTURE_TIME,
+            "bookmakers": [
+                {
+                    "key": "kalshi",
+                    "title": "Kalshi",
+                    "link": "https://kalshi.com/markets/test-prop",
+                    "markets": [
+                        {
+                            "key": "pitcher_strikeouts",
+                            "description": "Pitcher Strikeouts",
+                            "last_update": "2026-09-12T01:00:00Z",
+                            "outcomes": [
+                                {
+                                    "name": "Over",
+                                    "description": "Test Pitcher",
+                                    "point": 5.5,
+                                    "price": 125,
+                                },
+                                {
+                                    "name": "Under",
+                                    "description": "Test Pitcher",
+                                    "point": 5.5,
+                                    "price": -145,
+                                },
+                            ],
+                        }
+                    ],
+                }
+            ],
+        }
+        session = Mock()
+        session.get.side_effect = [events, odds]
+
+        rows = PropLineAPIClient(session=session, sleep=Mock()).get_kalshi_props(
+            "baseball_mlb"
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["source"], "kalshi")
+        self.assertEqual(rows[0]["player_name"], "Test Pitcher")
+        self.assertEqual(rows[0]["over_price"], 125)
+        self.assertEqual(rows[0]["under_price"], -145)
+        self.assertEqual(rows[0]["url"], "https://kalshi.com/markets/test-prop")
+        self.assertEqual(
+            session.get.call_args_list[1].args[0],
+            "https://api.prop-line.test/v1/sports/baseball_mlb/events/event-1/odds",
+        )
+        self.assertEqual(
+            session.get.call_args_list[1].kwargs["params"],
+            {"bookmakers": "kalshi", "includeLinks": "true"},
+        )
+
+    def test_get_game_odds_keeps_all_propline_books_and_links(self):
+        response = Mock(status_code=200, headers={})
+        response.json.return_value = [
+            {
+                "id": "event-1",
+                "sport_key": "baseball_mlb",
+                "bookmakers": [
+                    {
+                        "key": "kalshi",
+                        "title": "Kalshi",
+                        "link": "https://kalshi.com/markets/test-game",
+                        "markets": [],
+                    },
+                    {"key": "pinnacle", "title": "Pinnacle", "markets": []},
+                ],
+            }
+        ]
+        session = Mock()
+        session.get.return_value = response
+
+        events = PropLineAPIClient(session=session, sleep=Mock()).get_game_odds(
+            "baseball_mlb"
+        )
+
+        self.assertEqual(events[0]["bookmakers"][0]["key"], "kalshi")
+        self.assertEqual(events[0]["bookmakers"][1]["key"], "pinnacle")
+        self.assertEqual(
+            events[0]["bookmakers"][0]["link"],
+            "https://kalshi.com/markets/test-game",
+        )
+        self.assertEqual(
+            session.get.call_args.kwargs["params"],
+            {
+                "markets": "h2h,spreads,totals",
+                "includeLinks": "true",
+            },
+        )
 
 
 @override_settings(
@@ -899,7 +1122,49 @@ class OpportunityRefreshTests(TestCase):
 
         self.assertEqual(client.get_props.call_count, 1)
 
-    def test_feed_personalizes_half_kelly_amount_from_profile_settings(self):
+    def test_propline_kalshi_target_is_compared_with_cross_book_references(self):
+        client = Mock()
+        client.get_props.return_value = [self.sharp, self.secondary]
+        client.get_game_odds.return_value = []
+        propline = Mock()
+        propline.get_props.return_value = [self.target, self.sharp, self.secondary]
+        propline.get_game_odds.return_value = []
+        polymarket = Mock()
+        polymarket.get_events.return_value = []
+
+        results = OpportunityService(
+            client=client,
+            propline_client=propline,
+            polymarket_client=polymarket,
+        ).list({}, force_refresh=True)["results"]
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["platform"]["name"], "Kalshi")
+        propline.get_props.assert_called_once_with("americanfootball_nfl")
+        client.get_props.assert_called_once_with("americanfootball_nfl")
+
+    def test_refresh_does_not_call_direct_market_clients(self):
+        client = Mock()
+        client.get_props.return_value = [self.target, self.sharp, self.secondary]
+        client.get_game_odds.return_value = []
+        kalshi = Mock()
+
+        OpportunityService(client=client, kalshi_client=kalshi).list({}, force_refresh=True)
+
+        kalshi.get_events.assert_not_called()
+
+    def test_kalshi_opportunities_keep_their_actual_source_and_link(self):
+        client = Mock()
+        client.get_props.return_value = [self.target, self.sharp, self.secondary]
+        client.get_game_odds.return_value = []
+
+        result = OpportunityService(client=client).list({}, force_refresh=True)["results"][0]
+
+        self.assertEqual(result["platform"]["name"], "Kalshi")
+        self.assertEqual(result["action"]["platform"], "kalshi")
+        self.assertEqual(result["action"]["marketUrl"], self.target["url"])
+
+    def test_feed_personalizes_quarter_kelly_amount_from_profile_settings(self):
         client = Mock()
         client.get_props.return_value = [self.target, self.sharp, self.secondary]
         client.get_game_odds.return_value = []
@@ -913,15 +1178,15 @@ class OpportunityRefreshTests(TestCase):
 
         sizing = result["positionSizing"]
         self.assertTrue(sizing["isConfigured"])
-        self.assertGreaterEqual(sizing["recommendedAmount"], 5.0)
-        self.assertLessEqual(sizing["recommendedAmount"], 10.0)
+        self.assertGreaterEqual(sizing["recommendedAmount"], 1.0)
+        self.assertLessEqual(sizing["recommendedAmount"], 5.0)
         self.assertLessEqual(sizing["recommendedAmount"], sizing["maximumAmount"])
         self.assertEqual(
             sizing["expectedProfit"],
             int(sizing["recommendedAmount"] * result["ev"]["value"]) / 100,
         )
 
-    def test_international_polymarket_rows_cannot_become_us_targets(self):
+    def test_parlay_polymarket_rows_are_not_used_as_targets(self):
         client = Mock()
         client.get_props.return_value = [
             OpportunityCalculationTests().row("polymarket"),
@@ -929,16 +1194,8 @@ class OpportunityRefreshTests(TestCase):
             self.secondary,
         ]
         client.get_game_odds.return_value = []
-        kalshi_client = Mock()
-        kalshi_client.get_events.return_value = []
-        polymarket_us_client = Mock()
-        polymarket_us_client.get_events.return_value = []
 
-        results = OpportunityService(
-            client=client,
-            kalshi_client=kalshi_client,
-            polymarket_client=polymarket_us_client,
-        ).list({}, force_refresh=True)["results"]
+        results = OpportunityService(client=client).list({}, force_refresh=True)["results"]
 
         self.assertEqual(results, [])
 

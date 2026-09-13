@@ -20,6 +20,7 @@ import VerificationUnavailablePage from './pages/verification/VerificationUnavai
 import { ParlayProvider } from './context/ParlayContext.jsx'
 import { EvWatchlistProvider } from './context/EvWatchlistContext.jsx'
 import { VerificationProvider } from './context/VerificationContext.jsx'
+import { useAuth } from './context/AuthContext.jsx'
 
 /**
  * VerificationGuard renders its own `<Outlet />` for the routes it guards.
@@ -37,6 +38,15 @@ function GuardedOutlet() {
   )
 }
 
+// Signed-in users belong in the product, not on the marketing landing page.
+// Waiting for AuthProvider avoids redirecting a restored Supabase session
+// through the landing page during its initial token check.
+function LandingRoute() {
+  const { isAuthenticated, loading } = useAuth()
+  if (loading) return null
+  return isAuthenticated ? <Navigate to="/home" replace /> : <LandingPage />
+}
+
 export default function App() {
   return (
     <Routes>
@@ -45,7 +55,7 @@ export default function App() {
 
       {/* Marketing site */}
       <Route element={<SiteLayout />}>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<LandingRoute />} />
         {/* Old plain-text methodology page is gone — the Learning Center now
             lives in the dashboard shell. */}
         <Route path="/about" element={<Navigate to="/methodology" replace />} />

@@ -101,6 +101,10 @@ PARLAY_API_KEY = env("PARLAY_API_KEY", default="")
 PARLAY_API_BASE_URL = env(
     "PARLAY_API_BASE_URL", default="https://parlay-api.com/v1"
 )
+PROPLINE_API_KEY = env("PROPLINE_API_KEY", default="")
+PROPLINE_API_BASE_URL = env(
+    "PROPLINE_API_BASE_URL", default="https://api.prop-line.com/v1"
+)
 KALSHI_API_BASE_URL = env(
     "KALSHI_API_BASE_URL",
     default="https://api.elections.kalshi.com/trade-api/v2",
@@ -113,16 +117,15 @@ MARKET_DATA_SPORTS = env.list(
     default=[
         "baseball_mlb",
         "americanfootball_nfl",
-        "basketball_nba",
-        "icehockey_nhl",
+        "americanfootball_ncaaf",
         "basketball_wnba",
+        "icehockey_nhl",
         "soccer_epl",
     ],
 )
 MARKET_DATA_BOOKMAKERS = env.list(
     "MARKET_DATA_BOOKMAKERS",
     default=[
-        "kalshi",
         "polymarket",
         "pinnacle",
         "fanduel",
@@ -151,6 +154,9 @@ MARKET_DATA_BOOKMAKERS = env.list(
 )
 MARKET_DATA_MAX_AGE_SECONDS = env.int("MARKET_DATA_MAX_AGE_SECONDS", default=300)
 MARKET_DATA_PROP_LIMIT = env.int("MARKET_DATA_PROP_LIMIT", default=10000)
+MARKET_DATA_PROPLINE_EVENT_LIMIT = env.int(
+    "MARKET_DATA_PROPLINE_EVENT_LIMIT", default=3
+)
 MARKET_DATA_REQUEST_TIMEOUT_SECONDS = env.int(
     "MARKET_DATA_REQUEST_TIMEOUT_SECONDS", default=15
 )
@@ -162,7 +168,7 @@ MARKET_DATA_COST_ALLOWANCE_PERCENT = env.float(
     "MARKET_DATA_COST_ALLOWANCE_PERCENT", default=1.0
 )
 MARKET_DATA_KELLY_FRACTION = env.float(
-    "MARKET_DATA_KELLY_FRACTION", default=0.5
+    "MARKET_DATA_KELLY_FRACTION", default=0.25
 )
 NESSIE_API_KEY = env("NESSIE_API_KEY", default="")
 NESSIE_API_BASE_URL = env("NESSIE_API_BASE_URL", default="http://api.nessieisreal.com")

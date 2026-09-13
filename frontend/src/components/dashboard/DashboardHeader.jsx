@@ -168,7 +168,7 @@ export default function DashboardHeader({
           </svg>
         </button>
 
-        <Link to="/" className="flex-shrink-0" aria-label="Vantage home">
+        <Link to="/home" className="flex-shrink-0" aria-label="Vantage home">
           <span className="text-lg font-semibold tracking-[0.12em] text-vantage-text">
             <span className="text-gradient-lavender">V</span>ANTAGE
           </span>

@@ -1,6 +1,6 @@
 export const PLATFORMS = [
   { value: 'kalshi', label: 'Kalshi' },
-  { value: 'polymarket', label: 'Polymarket US' },
+  { value: 'polymarket', label: 'Polymarket' },
 ]
 
 export const SPORTS = [

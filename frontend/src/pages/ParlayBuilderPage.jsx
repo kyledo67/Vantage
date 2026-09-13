@@ -85,7 +85,7 @@ function ParlayCard({ parlay, onRename, onRemove, onViewDetails }) {
       <p className="mt-5 text-xs leading-relaxed text-vantage-textDim">
         Created{' '}
         {new Date(parlay.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}{' '}
-        · this session
+        · saved to your account
       </p>
 
       <div className="mt-5 flex items-center gap-4">

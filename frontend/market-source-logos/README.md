@@ -17,7 +17,7 @@ This folder collects the requested logo assets for Vantage prototypes and source
 | FanDuel | `official/fanduel/` | Flutter's official FanDuel logo pack |
 | Polymarket | `official/polymarket/` | Polymarket's official logo pack |
 | DraftKings, Pinnacle, BetMGM, Caesars, Kalshi | `logos/*.png` | Public bookmaker-image endpoint surfaced by odds-api.net |
-| Fanatics, PrizePicks, Underdog, Robinhood | `logos/*.png` | Public site favicon fallback |
+| Fanatics, PrizePicks, Underdog | `logos/*.png` | Public site favicon fallback |
 
 Use third-party marks only to identify the relevant data source. Do not alter, recolor, imply endorsement, or use them in marketing without confirming each owner's brand guidelines and permissions. Prefer the official FanDuel and Polymarket files whenever those brands appear.
 

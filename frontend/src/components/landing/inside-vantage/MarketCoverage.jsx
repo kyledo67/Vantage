@@ -1,6 +1,5 @@
 import { motion, useReducedMotion } from 'framer-motion'
 import kalshiLogo from '../../../assets/logos/kalshi.png'
-import robinhoodLogo from '../../../assets/logos/robinhood.png'
 import polymarketLogo from '../../../assets/logos/polymarket.png'
 import { SOURCE_BRAND_COLORS, hexToRgba } from '../../../utils/sourceBrandColors.js'
 
@@ -14,13 +13,6 @@ const MARKETS = [
     color: SOURCE_BRAND_COLORS.Kalshi,
     blurb: 'CFTC-regulated event contracts',
     rotateFrom: -10,
-  },
-  {
-    name: 'Robinhood',
-    logo: robinhoodLogo,
-    color: SOURCE_BRAND_COLORS.Robinhood,
-    blurb: 'Prediction markets on a familiar app',
-    rotateFrom: 8,
   },
   {
     name: 'Polymarket',
@@ -119,7 +111,7 @@ export default function MarketCoverage() {
           Where Vantage finds your edge
         </h3>
         <p className="mt-4 text-base leading-relaxed text-vantage-textDim">
-          Every price on Kalshi, Robinhood, and Polymarket is cross-referenced against sharp
+          Every price on Kalshi and Polymarket is cross-referenced against sharp
           sportsbook consensus — the gaps between them are where positive EV lives.
         </p>
       </motion.div>

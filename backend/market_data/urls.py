@@ -8,6 +8,8 @@ from .views import (
     OpportunityListView,
     PersonaInquiryView,
     PersonaWebhookView,
+    SavedParlayDetailView,
+    SavedParlayListView,
     SettingsView,
 )
 
@@ -15,6 +17,12 @@ urlpatterns = [
     path("health/", HealthView.as_view(), name="health"),
     path("profile/", CurrentUserProfileView.as_view(), name="current-user-profile"),
     path("settings/", SettingsView.as_view(), name="settings"),
+    path("parlays/", SavedParlayListView.as_view(), name="saved-parlay-list"),
+    path(
+        "parlays/<uuid:parlay_id>/",
+        SavedParlayDetailView.as_view(),
+        name="saved-parlay-detail",
+    ),
     path(
         "persona/inquiries/",
         PersonaInquiryView.as_view(),

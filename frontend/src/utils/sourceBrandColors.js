@@ -19,7 +19,6 @@ export const SOURCE_BRAND_COLORS = {
   Underdog: '#5B6EF5',
   Kalshi: '#00D992',
   Polymarket: '#3B5BFF',
-  Robinhood: '#CBFF00',
 }
 
 /** Brand color for a source name, or `fallback` (default vantage accent) if unrecognized. */

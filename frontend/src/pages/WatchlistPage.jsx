@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAsync } from '../hooks/useAsync.js'
 import { useEvWatchlist } from '../context/EvWatchlistContext.jsx'
 import { useParlays } from '../context/ParlayContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { getOpportunities, getOpportunityDetail } from '../services/opportunities.js'
 import { SectionHeader, Panel, PanelEmpty, RowsSkeleton } from '../components/dashboard/states.jsx'
 import OpportunityRow, { COLUMNS } from '../components/dashboard/OpportunityRow.jsx'
@@ -12,7 +13,6 @@ import { WatchStatusBadge } from '../components/ev/Badges.jsx'
 import OddsHistoryChart from '../components/ev/OddsHistoryChart.jsx'
 import FilterSelect from '../components/ui/FilterSelect.jsx'
 
-const POLL_INTERVAL_MS = 15000
 const MOVEMENT_THRESHOLD = 0.3 // EV percentage points
 
 const SORT_OPTIONS = [
@@ -31,8 +31,8 @@ function relativeTime(iso) {
 }
 
 /**
- * Watchlist — bookmarked opportunities from the real, live EV Finder feed
- * (GET /api/opportunities, same cache-first fetch every other page here
+ * Watchlist — bookmarked opportunities from the cached EV Finder feed
+ * (GET /api/opportunities, same account-scoped cache every other page here
  * uses). There has never been a real GET/POST /api/watchlist endpoint
  * (confirmed against market_data/urls.py — no route exists), so rather than
  * keep this page calling one that always 404s, it resolves the ids saved in
@@ -42,6 +42,7 @@ function relativeTime(iso) {
 export default function WatchlistPage() {
   const { entries, removeFromWatchlist, clearAll, recordObservation, getHistory } = useEvWatchlist()
   const { addParlay, showToast } = useParlays()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const [platform, setPlatform] = useState('')
   const [sort, setSort] = useState('ev')
@@ -51,21 +52,12 @@ export default function WatchlistPage() {
   const [selectedMap, setSelectedMap] = useState({})
   const [builderOpen, setBuilderOpen] = useState(false)
 
-  const opportunities = useAsync(() => getOpportunities({}), [])
+  const opportunities = useAsync(() => getOpportunities({}, user?.id), [user?.id])
   const detail = useAsync(
-    () => (expandedId ? getOpportunityDetail(expandedId) : Promise.resolve(null)),
-    [expandedId],
+    () => (expandedId ? getOpportunityDetail(expandedId, user?.id) : Promise.resolve(null)),
+    [expandedId, user?.id],
     { immediate: Boolean(expandedId) }
   )
-
-  // Re-pull the cached snapshot periodically so movement-since-added and
-  // status stay current without the user refreshing manually.
-  useEffect(() => {
-    if (entries.length === 0) return undefined
-    const id = setInterval(() => opportunities.refetch(), POLL_INTERVAL_MS)
-    return () => clearInterval(id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opportunities.refetch, entries.length])
 
   const liveById = useMemo(() => {
     const map = new Map()
@@ -141,15 +133,19 @@ export default function WatchlistPage() {
     })
   }
 
-  function handleSaveParlay(parlay) {
-    addParlay(parlay)
-    setSelectedMap({})
-    setBuilderOpen(false)
-    showToast({
-      message: 'Saved to My Parlays.',
-      actionLabel: 'View My Parlays',
-      onAction: () => navigate('/parlay'),
-    })
+  async function handleSaveParlay(parlay) {
+    try {
+      await addParlay(parlay)
+      setSelectedMap({})
+      setBuilderOpen(false)
+      showToast({
+        message: 'Saved to My Parlays.',
+        actionLabel: 'View My Parlays',
+        onAction: () => navigate('/parlay'),
+      })
+    } catch {
+      // ParlayContext shows the save failure toast.
+    }
   }
 
   const selectedOpportunities = Object.values(selectedMap)
