@@ -12,7 +12,6 @@ import prizepicks from '../assets/logos/prizepicks.png'
 import underdog from '../assets/logos/underdog.png'
 import kalshi from '../assets/logos/kalshi.png'
 import polymarket from '../assets/logos/polymarket.png'
-import robinhood from '../assets/logos/robinhood.png'
 
 const PLATFORM_LOGOS = {
   FanDuel: fanduel,
@@ -26,7 +25,6 @@ const PLATFORM_LOGOS = {
   Kalshi: kalshi,
   Polymarket: polymarket,
   'Polymarket US': polymarket,
-  Robinhood: robinhood,
 }
 
 /** Local logo asset for a known platform/book name, or null if unrecognized. */
