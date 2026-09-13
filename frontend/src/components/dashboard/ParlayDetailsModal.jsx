@@ -97,14 +97,19 @@ export default function ParlayDetailsModal({ parlay, onClose }) {
                 </ul>
 
                 <div className="mx-6 my-5 rounded-xl bg-vantage-raised p-6">
-                  <dl className="grid grid-cols-3 gap-5">
-                    <Metric label="Estimated Edge" value={parlay?.estimatedEdge} positive />
-                    <Metric label="Estimated Chance" value={parlay?.estimatedChance} positive />
+                  <dl className="grid grid-cols-2 gap-5 sm:grid-cols-3">
+                    <Metric label="Recommended bet" value={parlay?.positionSizing?.recommendedAmountLabel} />
+                    <Metric label="Profit if parlay wins" value={parlay?.positionSizing?.profitIfWinLabel} positive />
+                    <Metric label="Payout if parlay wins" value={parlay?.positionSizing?.totalPayoutLabel} positive />
+                    <Metric label="Maximum allowed" value={parlay?.positionSizing?.maximumAmountLabel} />
+                    <Metric label="Combined odds" value={parlay?.positionSizing?.combinedOddsLabel} />
+                    <Metric label="Chance all legs win" value={parlay?.estimatedChance} />
+                    <Metric label="Estimated EV" value={parlay?.estimatedEdge} positive />
                     <Metric label="Selections" value={String(parlay?.selections?.length ?? 0)} />
                   </dl>
                   <p className="mt-5 text-sm leading-relaxed text-vantage-textDim">
-                    This is a hypothetical market analysis. It does not place a trade or guarantee
-                    an outcome.
+                    A parlay pays only when every leg wins. Confirm the live combo price before
+                    placing anything; no outcome or profit is guaranteed.
                   </p>
                 </div>
               </div>

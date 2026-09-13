@@ -30,6 +30,16 @@ PERSONA_PROFILE_STATUS = {
 }
 
 
+def position_sizing_context(request):
+    user = getattr(request, "user", None)
+    if not getattr(user, "is_authenticated", False):
+        return {}
+    profile = UserProfile.objects.filter(uid=user.id).only("bankroll").first()
+    if profile is None:
+        return {}
+    return {"bankroll": profile.bankroll}
+
+
 def sync_profile_verification(
     profile, persona_status, residence_country_code="", residence_subdivision=""
 ):
@@ -158,13 +168,6 @@ def build_settings_response(profile, email):
                         "type": "text",
                         "value": serialized["bankroll"],
                     },
-                    {
-                        "id": "max_position_percent",
-                        "label": "Maximum position (%)",
-                        "description": "Largest share of the bankroll to show for one opportunity.",
-                        "type": "text",
-                        "value": serialized["max_position_percent"],
-                    },
                 ],
             },
         ]
@@ -228,7 +231,7 @@ class CurrentUserProfileView(APIView):
 class SettingsView(APIView):
     authentication_classes = [SupabaseAuthentication]
     permission_classes = [IsAuthenticated]
-    editable_fields = {"markets", "bankroll", "max_position_percent"}
+    editable_fields = {"markets", "bankroll"}
 
     def get_profile(self, request):
         profile, _ = UserProfile.objects.get_or_create(uid=request.user.id)
@@ -411,7 +414,7 @@ class PersonaWebhookView(APIView):
 
 
 class OpportunityListView(APIView):
-    authentication_classes = []
+    authentication_classes = [SupabaseAuthentication]
     permission_classes = []
 
     def get(self, request):
@@ -425,6 +428,7 @@ class OpportunityListView(APIView):
                 opportunity_service.list(
                     request.query_params,
                     force_refresh=force_refresh,
+                    **position_sizing_context(request),
                 )
             )
             response["Cache-Control"] = "no-store"
@@ -437,12 +441,15 @@ class OpportunityListView(APIView):
 
 
 class OpportunityDetailView(APIView):
-    authentication_classes = []
+    authentication_classes = [SupabaseAuthentication]
     permission_classes = []
 
     def get(self, request, opportunity_id):
         try:
-            detail = opportunity_service.detail(opportunity_id)
+            detail = opportunity_service.detail(
+                opportunity_id,
+                **position_sizing_context(request),
+            )
         except MarketDataError as exc:
             return Response(
                 {"detail": str(exc)},

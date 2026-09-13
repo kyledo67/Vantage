@@ -96,16 +96,14 @@ Content-Type: application/json
 ```json
 {
   "markets": "both",
-  "bankroll": "500.00",
-  "max_position_percent": "5.00"
+  "bankroll": "500.00"
 }
 ```
 
 | Field | Type | Required | Accepted values and purpose |
 | --- | --- | --- | --- |
 | `markets` | string | No | `kalshi`, `polymarket`, or `both`. Defaults to `both`. |
-| `bankroll` | decimal string | No | Non-negative amount the user has allocated to prediction markets. Defaults to `0.00`. |
-| `max_position_percent` | decimal string | No | Maximum percentage of bankroll for one opportunity, from `0` through `100`. Defaults to `5.00`. |
+| `bankroll` | decimal string | Yes for product onboarding | Positive amount the user has allocated to prediction markets. It is required before access to personalized opportunities. |
 
 The API ignores client attempts to set `uid`, `is_age_verified`, or
 `verification_status`. Those are server-controlled fields.
@@ -139,7 +137,6 @@ The API ignores client attempts to set `uid`, `is_age_verified`, or
   "verification_status": "not_started",
   "markets": "both",
   "bankroll": "500.00",
-  "max_position_percent": "5.00",
   "created_at": "2026-09-12T05:00:00Z",
   "updated_at": "2026-09-12T05:00:00Z"
 }
@@ -187,7 +184,7 @@ Send any subset of the editable fields:
 }
 ```
 
-Editable fields are `markets`, `bankroll`, and `max_position_percent`.
+Editable fields are `markets` and `bankroll`.
 
 #### Response — `200 OK`
 
@@ -205,7 +202,7 @@ Returns the complete updated profile.
 ### `GET /api/settings/`
 
 Returns the authenticated user's account, verification state, prediction-market
-selection, bankroll, and maximum-position preference in the section/field structure
+selection and bankroll in the section/field structure
 consumed by the React Settings page. The profile is created automatically when absent.
 
 The email comes from the verified Supabase session. Persona controls
@@ -226,8 +223,8 @@ Updates one editable setting.
 }
 ```
 
-Accepted `fieldId` values are `markets`, `bankroll`, and
-`max_position_percent`. The response contains the complete updated `sections` object.
+Accepted `fieldId` values are `markets` and `bankroll`. The response contains the
+complete updated `sections` object.
 Attempts to update email or verification fields return `400 Bad Request`.
 
 ## Persona verification
@@ -286,6 +283,11 @@ positive edges are still eligible when their hit probability clears the hard flo
 ### `GET /api/opportunities/`
 
 Returns the current ranked opportunity feed.
+
+The feed remains readable without authentication. When a valid
+`Authorization: Bearer <supabase-access-token>` header is present, Django reads the
+user's saved bankroll and adds personalized
+`positionSizing` values to every result.
 
 #### Query inputs
 
@@ -369,8 +371,27 @@ soccer_epl
         "tier": "lower",
         "tierLabel": "Lower hit chance",
         "kellyPercent": 2.04,
+        "halfKellyPercent": 1.02,
         "quarterKellyPercent": 0.51,
         "rankScore": 2.04
+      },
+      "positionSizing": {
+        "method": "Half Kelly",
+        "kellyFraction": 0.5,
+        "recommendedPercent": 2.5,
+        "maxPositionPercent": 5.0,
+        "isCapped": false,
+        "isMinimumApplied": true,
+        "isConfigured": true,
+        "bankroll": 500.0,
+        "recommendedAmount": 12.50,
+        "recommendedAmountLabel": "$12.50",
+        "expectedProfit": 0.69,
+        "expectedProfitLabel": "+$0.69",
+        "profitIfWin": 33.75,
+        "profitIfWinLabel": "+$33.75",
+        "maximumAmount": 25.0,
+        "maximumAmountLabel": "$25.00"
       },
       "hasDetail": true
     }
@@ -393,7 +414,11 @@ soccer_epl
 | `evaluation.hitProbability` | Consensus estimate of how often the selection wins, expressed from `0` through `100`. |
 | `evaluation.tier` | Plain-language hit-chance band: `longshot`, `lower`, `moderate`, or `higher`. |
 | `evaluation.kellyPercent` | Full Kelly fraction expressed as a bankroll percentage and used for default ranking. |
-| `evaluation.quarterKellyPercent` | Conservative quarter-Kelly reference shown in the detail panel. |
+| `evaluation.halfKellyPercent` | Half of full Kelly before applying Vantage's 2.5%–5% position range. |
+| `positionSizing` | Personalized recommendation calculated when the request includes a valid Supabase session and the profile has a bankroll. |
+| `positionSizing.recommendedAmount` | Kelly-based amount constrained to the 2.5%–5% bankroll range. |
+| `positionSizing.expectedProfit` | Probability-weighted net profit estimate: recommended amount × net EV. It is a long-run average, so it can be small even when a single win pays more. |
+| `positionSizing.profitIfWin` | Profit if the selected outcome wins at the current target odds using the complete recommended stake, before platform fees. |
 
 #### Errors
 
@@ -407,6 +432,9 @@ soccer_epl
 
 Returns the book-by-book evidence behind one opportunity. Use the `id` returned by
 `GET /api/opportunities/`.
+
+A valid Supabase bearer token adds the same personalized sizing calculation to the
+detail response and its stats.
 
 #### Inputs
 
@@ -472,11 +500,6 @@ Returns the book-by-book evidence behind one opportunity. Use the `id` returned 
       "label": "Estimated EV after costs",
       "value": "+14.2%",
       "isPositive": true
-    },
-    {
-      "label": "Target quote",
-      "value": "Kalshi +100",
-      "isPositive": false
     },
     {
       "label": "Consensus sources",
@@ -591,6 +614,37 @@ For every Kalshi or Polymarket US outcome, the backend:
 EV already includes win probability, but the product applies a separate minimum
 hit-rate policy. A mathematically positive-EV longshot is omitted whenever its
 consensus probability is below `30%`.
+
+## Position sizing
+
+Vantage uses fractional Kelly rather than a fixed one-percent unit for every pick. For
+a binary position with fair win probability `p`, loss probability `q = 1 - p`, and net
+profit multiple `b = decimal odds - 1`, full Kelly is:
+
+```text
+full Kelly fraction = (b × p - q) / b
+                    = net EV / b
+```
+
+Because `p` is an estimate rather than a known probability, the product recommends
+half Kelly by default:
+
+```text
+recommended fraction = min(max(0.5 × full Kelly, 2.5%), 5%)
+maximum slider range  = 5%
+recommended amount   = bankroll × recommended fraction
+expected profit      = recommended amount × net EV
+profit if win        = recommended amount × b
+```
+
+Dollar amounts are rounded down to cents. One unit is still defined as one percent of
+bankroll for display. Vantage raises a smaller half-Kelly result to the product's 2.5%
+minimum and limits the recommendation and slider to 5% of the bankroll.
+
+For a multi-leg build, the frontend multiplies independent leg probabilities and target
+decimal odds, compounds the legs' net EV values, then applies the same 2.5%–5%
+position range. Same-event builds remain blocked because their correlation is not
+modeled.
 
 ### Consensus weights
 
@@ -805,6 +859,7 @@ MARKET_DATA_REQUEST_TIMEOUT_SECONDS
 MARKET_DATA_MIN_EV_PERCENT
 MARKET_DATA_MIN_HIT_PROBABILITY_PERCENT
 MARKET_DATA_COST_ALLOWANCE_PERCENT
+MARKET_DATA_KELLY_FRACTION
 ```
 
 ## Routes not implemented yet

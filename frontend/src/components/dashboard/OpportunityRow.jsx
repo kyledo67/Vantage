@@ -8,7 +8,7 @@ import { DURATION, EASE, PRESS_ROW } from '../../motion/tokens.js'
 // Widened proportionally for the larger type scale, and the trailing column
 // now matches the 56px chevron button so it's never clipped.
 export const COLUMNS =
-  'grid grid-cols-[2fr_1.1fr_0.9fr_0.85fr_0.9fr_0.8fr_56px] items-center gap-5'
+  'grid grid-cols-[1.8fr_1fr_0.8fr_0.75fr_0.75fr_0.9fr_0.7fr_56px] items-center gap-4'
 
 /** Detail panel — each block is skipped entirely when its data is absent. */
 function ExpandedPanel({ detail, status, onMethodology }) {
@@ -146,7 +146,7 @@ export default function OpportunityRow({
   onSelect,
 }) {
   const navigate = useNavigate()
-  const { selection, market, platform, price, consensus, ev, evaluation } = opportunity
+  const { selection, market, platform, price, consensus, ev, evaluation, positionSizing } = opportunity
   const hitChance = evaluation?.hitProbabilityLabel || consensus?.label
 
   const handleMethodology = () => {
@@ -266,6 +266,21 @@ export default function OpportunityRow({
           )}
         </div>
 
+        <div className="min-w-0" role="cell">
+          {positionSizing?.isConfigured ? (
+            <>
+              <p className="text-lg font-semibold text-vantage-text">
+                {positionSizing.recommendedAmountLabel}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-vantage-textDim">
+                Win {positionSizing.profitIfWinLabel} · Cap {positionSizing.maximumAmountLabel}
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-vantage-textDim">Set bankroll</p>
+          )}
+        </div>
+
         <div role="cell">
           {ev?.label && (
             <ValueFlash value={ev.label} isPositive={ev.isPositive}>
@@ -315,6 +330,13 @@ export default function OpportunityRow({
             </span>
           )}
           {hitChance && <span>Est. hit {hitChance}</span>}
+          {positionSizing?.isConfigured ? (
+            <span>
+              Rec. {positionSizing.recommendedAmountLabel} · Win {positionSizing.profitIfWinLabel}
+            </span>
+          ) : (
+            <span>Set bankroll for sizing</span>
+          )}
         </div>
       </button>
 

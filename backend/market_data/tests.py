@@ -2,9 +2,10 @@ import hashlib
 import hmac
 import json
 import time
+from decimal import Decimal
 from unittest.mock import Mock, patch
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -17,6 +18,8 @@ from .opportunities import (
     OpportunityService,
     build_game_opportunities,
     build_prop_opportunities,
+    personalized_position_sizing,
+    probability_aware_evaluation,
 )
 from .persona import PersonaInquirySession, verify_persona_signature
 from .serializers import UserProfileSerializer
@@ -25,6 +28,11 @@ from .target_markets import (
     normalize_kalshi_events,
     normalize_polymarket_events,
 )
+
+
+TEST_FUTURE_TIME = (
+    datetime.now(timezone.utc) + timedelta(days=7)
+).replace(microsecond=0).isoformat()
 
 
 class PlatformEligibilityTests(TestCase):
@@ -100,7 +108,6 @@ class CurrentUserProfileTests(APITestCase):
             {
                 "markets": "both",
                 "bankroll": "500.00",
-                "max_position_percent": "5.00",
             },
             format="json",
         )
@@ -134,16 +141,34 @@ class CurrentUserProfileTests(APITestCase):
         self.assertFalse(profile.is_age_verified)
         self.assertEqual(profile.verification_status, "not_started")
 
-    def test_rejects_invalid_market_and_position_percent(self):
+    def test_rejects_invalid_market(self):
         response = self.client.post(
             self.url,
-            {"markets": "sportsbook", "max_position_percent": "101.00"},
+            {
+                "markets": "sportsbook",
+                "bankroll": "100.00",
+            },
             format="json",
         )
 
         self.assertEqual(response.status_code, 400)
         self.assertIn("markets", response.data)
-        self.assertIn("max_position_percent", response.data)
+
+    def test_rejects_zero_bankroll(self):
+        response = self.client.post(
+            self.url,
+            {"bankroll": "0.00"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("bankroll", response.data)
+
+    def test_profile_setup_requires_bankroll(self):
+        response = self.client.post(self.url, {}, format="json")
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("bankroll", response.data)
 
 
 @override_settings(
@@ -162,7 +187,7 @@ class OpportunityCalculationTests(TestCase):
             "sport_key": "americanfootball_nfl",
             "away_team": "Away Team",
             "home_team": "Home Team",
-            "commence_time": "2026-09-13T01:00:00Z",
+            "commence_time": TEST_FUTURE_TIME,
             "source": source,
             "source_title": source_titles.get(source, source.title()),
             "player_name": "Test Player",
@@ -175,6 +200,69 @@ class OpportunityCalculationTests(TestCase):
             "age_seconds": 10,
             "url": f"https://example.com/{source}/market",
         }
+
+    def test_half_kelly_sizing_uses_bankroll_ev_odds_and_five_percent_maximum(self):
+        opportunity = {
+            "price": {"odds": 100},
+            "ev": {"value": 10.0},
+            "evaluation": {"kellyPercent": 10.0},
+        }
+
+        sizing = personalized_position_sizing(
+            opportunity,
+            bankroll="1000.00",
+        )
+
+        self.assertEqual(sizing["method"], "Half Kelly")
+        self.assertEqual(sizing["uncappedPercent"], 5.0)
+        self.assertEqual(sizing["recommendedPercent"], 5.0)
+        self.assertEqual(sizing["maxPositionPercent"], 5.0)
+        self.assertEqual(sizing["recommendedAmount"], 50.0)
+        self.assertEqual(sizing["maximumAmount"], 50.0)
+        self.assertEqual(sizing["expectedProfit"], 5.0)
+        self.assertEqual(sizing["profitIfWin"], 50.0)
+        self.assertEqual(sizing["unitSize"], 10.0)
+        self.assertEqual(sizing["recommendedUnits"], 5.0)
+        self.assertFalse(sizing["isCapped"])
+        self.assertFalse(sizing["isMinimumApplied"])
+
+    def test_position_sizing_applies_the_two_point_five_percent_minimum(self):
+        sizing = personalized_position_sizing(
+            {
+                "price": {"odds": 100},
+                "ev": {"value": 2.0},
+                "evaluation": {"kellyPercent": 2.0},
+            },
+            bankroll="1000.00",
+        )
+
+        self.assertEqual(sizing["uncappedPercent"], 1.0)
+        self.assertEqual(sizing["recommendedPercent"], 2.5)
+        self.assertEqual(sizing["maximumAmount"], 50.0)
+        self.assertTrue(sizing["isMinimumApplied"])
+
+    def test_profit_if_win_uses_the_entire_recommended_stake(self):
+        opportunity = {
+            "price": {"odds": 203},
+            "ev": {"value": 10.0},
+            "evaluation": {"kellyPercent": 10.0},
+        }
+
+        sizing = personalized_position_sizing(
+            opportunity,
+            bankroll="1000.00",
+        )
+
+        # $50 at +203 buys the equivalent of about 151.52 33¢ contracts:
+        # $151.50 total payout, or $101.50 profit before fees.
+        self.assertEqual(sizing["recommendedAmount"], 50.0)
+        self.assertEqual(sizing["profitIfWin"], 101.5)
+
+    def test_probability_evaluation_exposes_half_kelly(self):
+        evaluation = probability_aware_evaluation(0.60, 2.0, 20.0)
+
+        self.assertEqual(evaluation["kellyPercent"], 20.0)
+        self.assertEqual(evaluation["halfKellyPercent"], 10.0)
 
     def test_calculates_net_ev_from_matching_no_vig_sharp_line(self):
         results = build_prop_opportunities(
@@ -379,7 +467,7 @@ class GameOpportunityCalculationTests(TestCase):
             "sport_key": "americanfootball_nfl",
             "away_team": "Away Team",
             "home_team": "Home Team",
-            "commence_time": "2026-09-13T01:00:00Z",
+            "commence_time": TEST_FUTURE_TIME,
             "bookmakers": [
                 {
                     "key": "kalshi",
@@ -811,6 +899,28 @@ class OpportunityRefreshTests(TestCase):
 
         self.assertEqual(client.get_props.call_count, 1)
 
+    def test_feed_personalizes_half_kelly_amount_from_profile_settings(self):
+        client = Mock()
+        client.get_props.return_value = [self.target, self.sharp, self.secondary]
+        client.get_game_odds.return_value = []
+        service = OpportunityService(client=client)
+
+        result = service.list(
+            {},
+            force_refresh=True,
+            bankroll="200.00",
+        )["results"][0]
+
+        sizing = result["positionSizing"]
+        self.assertTrue(sizing["isConfigured"])
+        self.assertGreaterEqual(sizing["recommendedAmount"], 5.0)
+        self.assertLessEqual(sizing["recommendedAmount"], 10.0)
+        self.assertLessEqual(sizing["recommendedAmount"], sizing["maximumAmount"])
+        self.assertEqual(
+            sizing["expectedProfit"],
+            int(sizing["recommendedAmount"] * result["ev"]["value"]) / 100,
+        )
+
     def test_international_polymarket_rows_cannot_become_us_targets(self):
         client = Mock()
         client.get_props.return_value = [
@@ -910,6 +1020,36 @@ class OpportunityEndpointTests(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         mock_list.assert_called_once_with(response.wsgi_request.GET, force_refresh=True)
+
+    @override_settings(
+        SUPABASE_URL="https://example.supabase.co",
+        SUPABASE_PUBLISHABLE_KEY="test-publishable-key",
+    )
+    @patch("market_data.views.opportunity_service.list")
+    def test_authenticated_feed_uses_saved_bankroll_and_fixed_position_cap(self, mock_list):
+        uid = UUID("55555555-5555-5555-5555-555555555555")
+        auth_response = Mock(status_code=200)
+        auth_response.json.return_value = {
+            "id": str(uid),
+            "email": "sizing@example.com",
+        }
+        mock_list.return_value = {"live": None, "results": []}
+        UserProfile.objects.create(
+            uid=uid,
+            bankroll="250.00",
+            max_position_percent="4.00",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer valid-access-token")
+
+        with patch(
+            "market_data.authentication.requests.get",
+            return_value=auth_response,
+        ):
+            response = self.client.get("/api/opportunities/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_list.call_args.kwargs["bankroll"], Decimal("250.00"))
+        self.assertNotIn("max_position_percent", mock_list.call_args.kwargs)
 
     @patch("market_data.views.opportunity_service.detail")
     def test_opportunity_detail(self, mock_detail):
